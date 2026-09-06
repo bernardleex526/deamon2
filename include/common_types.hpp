@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <chrono>
 
 // ----- 常量定义 -----
 constexpr double FOLLOW_DIST = 0.4;           // 机器人与目标的预设距离 (米)
@@ -95,6 +96,8 @@ struct SharedState {
     double direct_vx = 0.0;
     double direct_vy = 0.0;
     double direct_wz = 0.0;
+    std::chrono::steady_clock::time_point direct_received{};
+    double direct_timeout = 0.3;
     
     // 原子状态
     std::atomic<bool> active{false};
@@ -137,6 +140,10 @@ struct SharedState {
         vx = direct_vx;
         vy = direct_vy;
         wz = direct_wz;
+        if (std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                         direct_received).count() > direct_timeout) {
+            vx = vy = wz = 0.0;
+        }
     }
     
     // 设置直接控制指令
@@ -145,6 +152,7 @@ struct SharedState {
         direct_vx = vx;
         direct_vy = vy;
         direct_wz = wz;
+        direct_received = std::chrono::steady_clock::now();
     }
     
     // 获取点云数据

@@ -1,0 +1,118 @@
+软件系统架构说明
+本文档详细介绍山猫 M20 的软件系统架构。
+目录
+1. 系统概览
+2. 各主机职责（以 山猫 M20 Pro 为例）
+2.1 AOS (运动主机)
+2.2 NOS (导航主机)
+2.3 GOS (用户开发主机)
+﻿
+1. 系统概览
+山猫 M20 本体采用
+多主机协同架构
+，各主机基于 ROS2（Foxy）构建，使用 DrDDS（基于 FastDDS 的中间件）进行跨进程通信。
+多主机分工（以 山猫 M20 Pro 为例）：
+●
+运动主机（AOS）：运动控制主控，运行
+basic_server
+（与上层交互、转发指令）和
+rl_deploy
+（底层运控）
+●
+导航主机（NOS）：感知决策，运行建图、定位、规划、避障、自主充电
+●
+通用主机（GOS）：通用主机，供用户二次开发
+﻿
+﻿
+2. 各主机职责（以 山猫 M20 Pro 为例）
+2.1 AOS (运动主机)
+服务/节点
+职责
+﻿
+basic_server
+﻿
+机器人核心网关，接收上层指令，与 planner 交互下发目标点，转发速度指令给运控
+﻿
+rl_deploy
+﻿
+底层强化学习运控程序，执行步态控制、关节力控
+﻿
+lio_perception
+﻿
+激光-惯性里程计，输出高频里程计、高度图、深度图、累积点云
+﻿
+yesense_node
+﻿
+IMU 驱动，串口读取 IMU 数据，200Hz
+﻿
+height_map_nav
+﻿
+基于雷达点云生成周围地形高度图
+﻿
+ctrlmcu_node
+﻿
+MCU 控制通信，与底层电机驱动器交互
+﻿
+system_status_node
+ / 
+cpu_node
+﻿
+系统监控
+﻿
+2.2 NOS (导航主机)
+服务/节点
+职责
+﻿
+rslidar_node
+﻿
+激光雷达驱动，接收前后双雷达 UDP 数据，合并输出 10Hz 点云
+﻿
+localization.service
+﻿
+融合多传感器，实时位姿估计
+﻿
+global_planner.service
+﻿
+全局路径规划，基于预建栅格地图
+﻿
+planner.service
+﻿
+局部路径规划，结合实时障碍物地图，输出速度指令
+﻿
+passable_area.service
+﻿
+可通行域计算，处理累积点云生成障碍物栅格地图
+﻿
+reflective_column_node
+﻿
+识别充电桩反光柱并计算位姿
+﻿
+charge_manager
+﻿
+自主充电逻辑主控
+﻿
+handler
+﻿
+辅助模式（遥控+避障）下的避障模块
+﻿
+gps_node
+﻿
+GNSS驱动
+﻿
+system_status_node
+﻿
+系统状态监控、PTP 时间同步（Master）
+﻿
+cpu_node
+﻿
+CPU 温度与频率监控
+﻿
+yesense_node
+﻿
+IMU 驱动，串口读取 IMU 数据，200Hz
+﻿
+2.3 GOS (用户开发主机)
+服务/节点
+职责
+用户自定义节点
+供二次开发，通过 DDS/ROS2 与 NOS/AOS 通信

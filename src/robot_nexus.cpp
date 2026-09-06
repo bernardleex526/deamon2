@@ -14,8 +14,11 @@
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_srvs/srv/set_bool.hpp>
+#include <geometry_msgs/msg/point.hpp>
 #include <thread>
 #include <chrono>
+#include <stdexcept>
 
 #include "common_types.hpp"
 #include "lidar_tracker.hpp"
@@ -43,6 +46,37 @@ public:
         this->declare_parameter<bool>("enable_web", true);
         this->declare_parameter<bool>("enable_kalman", false);
         this->declare_parameter<std::string>("web_root", "");
+        this->declare_parameter<bool>("enable_android", true);
+        this->declare_parameter<bool>("enable_actions", true);
+        this->declare_parameter<double>("scan_yaw", 3.141592653589793);
+        this->declare_parameter<double>("follow_distance", FOLLOW_DIST);
+        this->declare_parameter<double>("corridor_width", RECTANGLE_WIDTH);
+        this->declare_parameter<double>("frame_front", ROBOT_FRAME_FRONT);
+        this->declare_parameter<double>("frame_back", ROBOT_FRAME_BACK);
+        this->declare_parameter<double>("frame_left", ROBOT_FRAME_LEFT);
+        this->declare_parameter<double>("frame_right", ROBOT_FRAME_RIGHT);
+        this->declare_parameter<double>("direct_timeout", 0.3);
+        LidarTracker::Config tracker_config;
+        tracker_config.scan_yaw = get_parameter("scan_yaw").as_double();
+        tracker_config.follow_distance = get_parameter("follow_distance").as_double();
+        tracker_config.corridor_width = get_parameter("corridor_width").as_double();
+        tracker_config.frame_front = get_parameter("frame_front").as_double();
+        tracker_config.frame_back = get_parameter("frame_back").as_double();
+        tracker_config.frame_left = get_parameter("frame_left").as_double();
+        tracker_config.frame_right = get_parameter("frame_right").as_double();
+        shared_state_.direct_timeout = get_parameter("direct_timeout").as_double();
+        for (double value : {tracker_config.follow_distance, tracker_config.corridor_width,
+                tracker_config.frame_front, tracker_config.frame_back, tracker_config.frame_left,
+                tracker_config.frame_right, shared_state_.direct_timeout}) {
+            if (!std::isfinite(value) || value <= 0.0) {
+                throw std::invalid_argument("geometry and timeout parameters must be positive and finite");
+            }
+        }
+        if (!std::isfinite(tracker_config.scan_yaw)) {
+            throw std::invalid_argument("scan_yaw must be finite");
+        }
+        lidar_tracker_.configure(tracker_config);
+        shared_state_.setTarget(tracker_config.follow_distance, 0.0);
         
         // 获取参数
         shared_state_.active.store(this->get_parameter("active").as_bool());
@@ -61,9 +95,23 @@ public:
         cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 1);
         action_cmd_pub_ = this->create_publisher<std_msgs::msg::String>("/d1_cmd", 10);
         scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-            "/scan", 1,
+            "/scan", rclcpp::SensorDataQoS(),
             std::bind(&RobotNexusNode::scanCallback, this, std::placeholders::_1)
         );
+        moving_service_ = create_service<std_srvs::srv::SetBool>(
+            "~/set_moving", [this](const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+                                   std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
+                shared_state_.is_moving_enabled.store(request->data);
+                shared_state_.setDirectCmd(0.0, 0.0, 0.0);
+                response->success = true;
+                response->message = "Follow enable updated; platform arm is independent";
+            });
+        target_sub_ = create_subscription<geometry_msgs::msg::Point>(
+            "~/target", 1, [this](geometry_msgs::msg::Point::SharedPtr point) {
+                if (std::isfinite(point->x) && std::isfinite(point->y)) {
+                    shared_state_.setTarget(point->x, point->y);
+                }
+            });
         
         // 设置日志回调
         auto log_cb = [this](const std::string& msg) {
@@ -100,6 +148,10 @@ public:
                 RCLCPP_INFO(this->get_logger(), "收到direct_cmd: vx=%.2f, vy=%.2f, wz=%.2f", x, y, z);
             });
             web_comm_.setActionCmdCallback([this](const std::string& action) {
+                if (!get_parameter("enable_actions").as_bool()) {
+                    RCLCPP_WARN(get_logger(), "Platform action rejected: %s", action.c_str());
+                    return;
+                }
                 std_msgs::msg::String msg;
                 msg.data = action;
                 action_cmd_pub_->publish(msg);
@@ -125,7 +177,9 @@ public:
         
         // 配置Android通讯
         android_comm_.setLogCallback(log_cb);
-        android_comm_.start();
+        if (get_parameter("enable_android").as_bool()) {
+            android_comm_.start();
+        }
         
         // 创建直接控制定时器（10Hz）
         direct_control_timer_ = this->create_wall_timer(
@@ -156,6 +210,8 @@ private:
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr action_cmd_pub_;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
     rclcpp::TimerBase::SharedPtr direct_control_timer_;
+    rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr moving_service_;
+    rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr target_sub_;
     
     void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr scan_msg)
     {

@@ -1,0 +1,254 @@
+激光雷达
+本文档介绍山猫 M20 的激光雷达硬件参数、数据获取方式以及组播转发服务配置。
+目录
+1. 概述
+2. 硬件参数
+2.1 不适用场景
+3. 静态外参
+4. 雷达状态查询
+4.1 basic_server 协议
+4.2 查看 rsdriver 日志
+5. 雷达驱动配置 
+5.1 输出话题对比
+5.2 作用范围
+6. 雷达组播转发服务
+6.1 multicast-relay服务启动
+6.2 原始组播雷达数据的接收和处理
+7. PTP 时间同步
+﻿
+﻿
+1. 概述
+山猫 M20 配备前后双 96 线激光雷达，用于环境感知、建图与导航避障。
+激光雷达开关状态可通过 basic_server 通信协议 
+Type=1002, Cmd=5
+ 设备状态上报查询。
+一般情况下，用户可以在AOS和NOS主机上通过 ROS2 话题获取激光雷达点云数据；
+multicast-relay.service
+服务也将原始组播数据转发到31网段，在GOS主机上，用户可直接通过 ROS2 话题获取激光雷达点云数据，但在31网段的外接主机上，用户需要通过
+rslidar sdk
+自行接收和处理激光雷达原始组播数据。
+2. 硬件参数
+参数
+规格
+类型
+96 线激光雷达
+数量
+2（前置×1 + 后置×1）
+独立 IP
+前雷达 
+10.21.33.201
+，后雷达 
+10.21.33.202
+﻿
+探测距离
+0.2 m ~ 60 m
+2.1 不适用场景
+●
+大面积玻璃环境（穿透/镜像反射）
+●
+光滑长走廊或空旷场景（特征不足）
+●
+高动态环境（大量移动物体）
+3. 静态外参
+本体坐标系（base_link）下的安装位置：
+传感器
+x (m)
+y (m)
+z (m)
+roll
+前激光雷达
+0.32028
+0
+-0.013
+0
+后激光雷达
+-0.32028
+0
+-0.013
+0
+雷达驱动在输出 
+/LIDAR/POINTS
+ 时，已将点云转换到 
+base_link
+ 坐标系下（
+dds_frame_id
+ 配置为 
+lidar_link
+，但内部已做静态外参变换）。用户无需手动执行坐标变换。
+﻿
+﻿
+4. 雷达状态查询
+4.1 basic_server 协议
+雷达开关状态通过 
+Type=1002, Cmd=5
+（设备状态上报）获取。该上报以 
+2Hz
+ 频率周期性主动推送，TCP 连接建立后自动接收，UDP 需先发送一次查询请求注册。
+雷达状态位于 
+Items.DevEnable.Lidar
+ 字段中：
+字段
+值
+含义
+DevEnable.Lidar.Front
+0 / 1 / 2
+前雷达 关闭/开启/启动中
+DevEnable.Lidar.Back
+0 / 1 / 2
+后雷达 关闭/开启/启动中
+上报数据中 
+DevEnable.Lidar
+ 部分示例：
+7
+"DevEnable": {
+    "Lidar": {
+        "Front": 1,
+        "Back": 1
+    }
+}
+﻿
+4.2 查看 rsdriver 日志
+雷达也通过 rsdriver 日志发布状态数据。
+字段
+正常值
+异常判定
+status
+1
+0 = 未运行
+error_code
+0
+非 0 = 硬件故障
+cld_size
+> 0
+0 = 无点云输出
+diff_timestamp
+100ms ~ 200ms
+> 200ms = 时间同步异常
+ptp
+0x1
+0x0 = PTP 未同步
+﻿
+﻿
+5. 雷达驱动配置 
+山猫M20支持将
+内部各主机（AOS/NOS/GOS）
+上的
+ROS2话题
+数据按
+前后雷达独立发送
+或
+合并发送（出厂默认）
+，两种模式通过修改配置文件切换。
+配置文件路径
+（需 root 权限）：
+2
+/opt/robot/share/node_driver/config/config.yaml
+配置项
+：
+4
+send_separately: false
+# true:  前后雷达独立发送
+# false: 前后雷达数据合并发送（默认）
+修改后需重启雷达驱动生效：
+2
+sudo systemctl restart rsdriver.service
+﻿
+5.1 输出话题对比
+●
+合并发送模式（默认）：
+话题名
+﻿
+/LIDAR/POINTS
+﻿
+说明
+前后雷达拼接点云数据
+消息类型
+sensor_msgs/msg/PointCloud2
+频率
+10Hz
+依赖服务
+AOS/NOS 内仅 rsdriver.service；GOS 内额外依赖雷达组播转发服务 multicast-relay.service
+数据说明
+：
+/LIDAR/POINTS
+ 输出的点云数据已在驱动层完成前后雷达拼接和坐标变换（转换至 
+base_link
+ 坐标系），用户无需手动处理。
+﻿
+●
+独立发送模式：
+话题名
+﻿
+/LIDAR/POINTS
+﻿
+﻿
+/LIDAR/POINTS2
+﻿
+说明
+传输
+前雷达点云
+传输
+后雷达点云
+消息类型
+sensor_msgs/msg/PointCloud2
+频率
+10Hz
+依赖服务
+AOS/NOS 内仅 rsdriver.service；GOS 内额外依赖雷达组播转发服务 multicast-relay.service
+警告
+：开启独立发送后，
+导航、定位功能将无法使用，自主充电功能部分受限
+。请仅在明确需要独立数据的场景下启用。
+﻿
+5.2 作用范围
+雷达驱动配置为
+每个主机独立
+。修改某台主机的配置文件只影响该主机的雷达数据输出，不影响其他主机。例如修改 106（NOS）上的配置，103（AOS）和其他主机的雷达数据解析不受影响。
+﻿
+﻿
+6. 雷达组播转发服务
+﻿
+multicast-relay
+ 是山猫 M20 的雷达点云数据组播转发服务，用于将机器狗上的原始组播雷达数据通过组播方式转发到31网段，以便31网段上的GOS主机和外接主机获取。
+﻿
+6.1 
+multicast-relay
+服务启动
+山猫M20软件包V1.1.7开始支持该服务，请务必将机器人升级至V1.1.7及以上版本。
+﻿
+multicast-relay.service
+ 服务出厂时默认处于关闭状态。启用步骤如下：
+12
+# 1. 设置服务开机自启（确保机器人重启后转发依然生效）
+sudo systemctl enable multicast-relay.service
+# 2. 立即启动服务（应用当前配置并开始数据转发）
+sudo systemctl start multicast-relay.service
+# 3. 检查服务运行状态（应显示绿色的 active (running)）
+sudo systemctl status multicast-relay.service
+# 4. 查看实时转发日志（确认是否有数据流出，按 Ctrl+C 退出查看）
+sudo journalctl -u multicast-relay.service -f
+服务运行时，状态显示为active（running）。
+﻿
+﻿
+﻿
+6.2 原始组播雷达数据的接收和处理
+GOS主机内部已对原始组播雷达数据进行接收、处理和转发，因此在GOS主机上可直接通过ROS话题获取点云数据；但在外接主机上，需要开发者自行接收和处理原始组播雷达数据，详细的操作参见：
+山猫M20 外部主机雷达数据接收配置指南
+（第4-5章）。
+﻿
+﻿
+7. PTP 时间同步
+雷达数据的时间戳基于 PTP 硬件时间同步。NOS 作为 PTP Master，所有雷达数据的时间戳与系统时间对齐。PTP 同步状态可通过 rsdriver 日志的 
+ptp
+ 字段监控（正常值 0x1）。
+时间同步的详细机制参见 
+系统时间与时间同步
+。
+﻿
+相关文档：
+ROS 2 / DDS 话题速查
+ | 
+basic_server 通信协议总览
+| 
+软件开发指南
+ 

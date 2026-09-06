@@ -1,0 +1,116 @@
+{
+  "development": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/qnYMoO1rWxDL7r6LHbad2kA9W47Z3je9",
+    "retrieved": "2026-09-06",
+    "text_sha256": "20240920811b45a808ca687004df2b9eb73b0070228798aa2f8130920440ce83",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "services": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/XPwkYGxZV3RbA43bU9znqRd5WAgozOKL",
+    "retrieved": "2026-09-06",
+    "text_sha256": "e2b5319f0542e31e4f6d8f3fb2c9daae38e2aefacc8c6c0d56b2f0db4ab64927",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "estop": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/KGZLxjv9VG3OAkQOS6ALr6mmV6EDybno",
+    "retrieved": "2026-09-06",
+    "text_sha256": "e76adf8e2aae04aaa49a4f90ed40cc59a95d99dba0dcce95f764461652ae6ec7",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "architecture": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/AR4GpnMqJzM30KZ3UklzoGBLVKe0xjE3",
+    "retrieved": "2026-09-06",
+    "text_sha256": "d21fd3a20210bbbbf488582541332143e3c6a815d8d55d623d1dccdf0fd20455",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "compute": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/Gl6Pm2Db8D30AMZ0Se3l4Re6JxLq0Ee4",
+    "retrieved": "2026-09-06",
+    "text_sha256": "d7b52b77f6c4baf43609ba94cdaaa63414baa6f3ca8ed591390f252a76b6978a",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "network": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/93NwLYZXWyg6Rxw6tNR75MABJkyEqBQm",
+    "retrieved": "2026-09-06",
+    "text_sha256": "10c7fc8fea87b5105bd9ad9b816c8d895aecdde57189d655500a262f6316de8b",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "time": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/P7QG4Yx2Jp7mXxnmiQa3A1DDV9dEq3XD",
+    "retrieved": "2026-09-06",
+    "text_sha256": "28a2d7edaa090671f447f116ca6b7920953e95de50f17aa5b6ac5e8160403fd5",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "external": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/gvNG4YZ7JnemNxlmiNv35roGV2LD0oRE",
+    "retrieved": "2026-09-06",
+    "text_sha256": "693a5c61b4518c965ab6fb04fdae183351b3fcd3f02e5ceaa13bba4d319acc16",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "dds": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/o14dA3GK8g5y4QGySnyegPppV9ekBD76",
+    "retrieved": "2026-09-06",
+    "text_sha256": "749b3d0bef1b5114e6a23c398b6c704e3ea6e95960f5d6dc6c11cee97f4788c9",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "topics": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/oP0MALyR8k73gzN3iYagqwbK83bzYmDO",
+    "retrieved": "2026-09-06",
+    "text_sha256": "16778915dc11f0bcc408aa20e9048d0dd2097685c3ecdf28b2be45579fd78c34",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "lidar": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/20eMKjyp81RbA0YbUe21nQMZWxAZB1Gv",
+    "retrieved": "2026-09-06",
+    "text_sha256": "6133dacf0c297a9a96a79c3d1be7571b7426a8530df2e02a818757ae9ebeb2c6",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "lidar_external": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/YQBnd5ExVEw5djy5UARXAoeQ8yeZqMmz",
+    "retrieved": "2026-09-06",
+    "text_sha256": "ec763cbe24581213966b7fb243cd502306cdfefe75e1ed223837456b45121c89",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "motion_ros": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/KGZLxjv9VG3OAkQOS6ALnkKGV6EDybno",
+    "retrieved": "2026-09-06",
+    "text_sha256": "d049d806367d039452bb59e090709459bc520225ce4af54caf3d0302e0b6f782",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "motion_basic": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/Gl6Pm2Db8D30AMZ0Se3l4yB5JxLq0Ee4",
+    "retrieved": "2026-09-06",
+    "text_sha256": "b8d8fd4f79234c2e069ef192334f2d8f03194a96f5f752391dbf87ed0f6def02",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "protocol": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/gwva2dxOW4Kb6v3btk13Eplv8bkz3BRL",
+    "retrieved": "2026-09-06",
+    "text_sha256": "0b39fd7b40ad0da0e7d134e834bf013bc654e1473908ec06d80c50d55ae52fa4",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "python": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/dpYLaezmVNLdDRkdFgp471d68rMqPxX6",
+    "retrieved": "2026-09-06",
+    "text_sha256": "b205e4d45f21c29b7de388adde7644dc4c3be8de2c38103590f0420553cc69bf",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "modes": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/lyQod3RxJK3d4eNdSokApxaaJkb4Mw9r",
+    "retrieved": "2026-09-06",
+    "text_sha256": "389d7b41cbc071fdee645279c899f2767a001d2c2ab9c14d6591dae2c7626daa",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "hardware": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/R1zknDm0WR3dN62dS94vel1YVBQEx5rG",
+    "retrieved": "2026-09-06",
+    "text_sha256": "493c1bc1fae7103d6c28965b15b4b960bd7e1febf2e0e6d605f724fc22c36921",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  },
+  "updates": {
+    "url": "https://alidocs.dingtalk.com/i/p/OlnXRl7ed542DGLp/docs/6LeBq413JAz3A9Y3CZL1A6O98DOnGvpb",
+    "retrieved": "2026-09-06",
+    "text_sha256": "a43b1bfb0e091178a8dedfcd253d8ebb58db07a909931718357cb554244eb09c",
+    "note": "Text-only SSR extraction; diagrams and attachments not included."
+  }
+}

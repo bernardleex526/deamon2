@@ -21,6 +21,16 @@
  */
 class LidarTracker {
 public:
+    struct Config {
+        double scan_yaw = 3.141592653589793;
+        double follow_distance = FOLLOW_DIST;
+        double corridor_width = RECTANGLE_WIDTH;
+        double frame_front = ROBOT_FRAME_FRONT;
+        double frame_back = ROBOT_FRAME_BACK;
+        double frame_left = ROBOT_FRAME_LEFT;
+        double frame_right = ROBOT_FRAME_RIGHT;
+    };
+    void configure(const Config& config) { config_ = config; }
     using VelocityCallback = std::function<void(const geometry_msgs::msg::Twist&)>;
     using DataBroadcastCallback = std::function<void()>;
     
@@ -99,8 +109,8 @@ public:
         double target_vec_x = target_x;
         double target_vec_y = target_y;
         double target_vec_len = std::sqrt(target_vec_x * target_vec_x + target_vec_y * target_vec_y);
-        double left_y_min = -RECTANGLE_WIDTH / 2;
-        double right_y_min = RECTANGLE_WIDTH / 2;
+        double left_y_min = -config_.corridor_width / 2;
+        double right_y_min = config_.corridor_width / 2;
         
         // 势场法：排斥力累积和最近障碍距离
         double repulse_x = 0.0, repulse_y = 0.0;
@@ -111,11 +121,12 @@ public:
         
         for (size_t i = 0; i < scan_msg->ranges.size(); ++i) {
             float range = scan_msg->ranges[i];
-            if (std::isinf(range) || std::isnan(range)) continue;
+            if (!std::isfinite(range) || range <= 0.0 ||
+                range < scan_msg->range_min || range > scan_msg->range_max) continue;
             
             float angle = scan_msg->angle_min + i * scan_msg->angle_increment;
-            double point_x = -range * cos(angle);
-            double point_y = -range * sin(angle);
+            double point_x = range * cos(angle + config_.scan_yaw);
+            double point_y = range * sin(angle + config_.scan_yaw);
             
             // 计算到机器人的距离
             double dist_to_robot = std::sqrt(point_x * point_x + point_y * point_y);
@@ -136,8 +147,8 @@ public:
             }
             
             // 更新最近障碍距离（排除机器人框架区域）
-            bool in_robot_frame = (point_x > -ROBOT_FRAME_BACK && point_x < ROBOT_FRAME_FRONT &&
-                                   point_y > -ROBOT_FRAME_RIGHT && point_y < ROBOT_FRAME_LEFT);
+            bool in_robot_frame = (point_x > -config_.frame_back && point_x < config_.frame_front &&
+                                   point_y > -config_.frame_right && point_y < config_.frame_left);
             
             if (!in_robot_frame && dist_to_robot < min_obstacle_dist) {
                 min_obstacle_dist = dist_to_robot;
@@ -170,7 +181,7 @@ public:
                 double proj_x = (point_x * target_vec_x + point_y * target_vec_y) / target_vec_len;
                 double proj_y = (point_x * -target_vec_y + point_y * target_vec_x) / target_vec_len;
                 
-                if (proj_x >= 0 && proj_x <= target_vec_len && std::abs(proj_y) <= RECTANGLE_WIDTH / 2.0) {
+                if (proj_x >= 0 && proj_x <= target_vec_len && std::abs(proj_y) <= config_.corridor_width / 2.0) {
                     if (enable_opencv_) {
                         if (proj_y > 0) {
                             cv::line(image, robot_center_pixel_, toPixel(point_x, point_y), cv::Scalar(255, 255, 0), 1, cv::LINE_AA);
@@ -223,7 +234,8 @@ public:
             cmd_vel_msg.linear.y = vy;
             cmd_vel_msg.angular.z = wz;
         }
-        else if (mode == MODE_FOLLOW) {
+        else if (mode == MODE_FOLLOW && points_in_target_count > 0) {
+            state_.getTarget(target_x, target_y);
             calculateFollowVelocity(cmd_vel_msg, target_x, target_y, 
                                     left_y_min, right_y_min,
                                     repulse_x, repulse_y, min_obstacle_dist);
@@ -253,6 +265,7 @@ public:
 
 private:
     SharedState& state_;
+    Config config_;
     cv::Point robot_center_pixel_;
     bool enable_opencv_ = false;
     bool enable_kalman_ = false;
@@ -272,7 +285,7 @@ private:
         double dist_to_target = std::sqrt(target_x * target_x + target_y * target_y);
         if (dist_to_target > 1e-6) {
             double angle_to_target = atan2(target_y, target_x);
-            double half_width = RECTANGLE_WIDTH / 2.0;
+            double half_width = config_.corridor_width / 2.0;
             
             cv::Point2f corners_robot[4];
             corners_robot[0] = cv::Point2f(0 - half_width * sin(angle_to_target), 0 + half_width * cos(angle_to_target));
@@ -313,7 +326,7 @@ private:
         }
         
         // 前后运动控制（带死区）
-        double dist_error = target_x - FOLLOW_DIST;
+        double dist_error = target_x - config_.follow_distance;
         if (std::abs(dist_error) < 0.05) {
             cmd.linear.x = 0.0;
         } else {

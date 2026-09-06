@@ -1,0 +1,604 @@
+ROS 2 / DDS 话题速查
+本页面汇总山猫 M20 所有对外暴露的 ROS 2 话题。DDS 架构说明和版本兼容性等详见
+ROS 2 / DDS 接口总览
+。
+目录
+1. /LIDAR/POINTS
+2. /LIDAR/POINTS2
+3. /IMU
+4. /ODOM
+5. /initialpose
+6. /LOCATION_STATUS
+7. /MOTION_INFO
+8. /MOTION_STATE
+9. /GAIT
+10. /NAV_CMD
+11. /HES_STATUS
+12. /CHARGE
+13. /CHARGE_STATUS
+14. /GPS
+﻿
+﻿
+1.
+/LIDAR/POINTS
+说明
+点云数据话题，默认传输前后雷达拼接点云；可配置为传输
+前雷达点云
+，详见
+激光雷达
+﻿
+消息类型
+sensor_msgs/msg/PointCloud2
+频率
+10Hz
+依赖服务
+AOS/NOS 内仅 rsdriver.service；GOS 内额外依赖 multicast-relay.service
+话题可见性
+AOS+NOS+GOS上均可见（满足上述依赖的情况下）
+参考资料
+﻿
+激光雷达
+﻿
+﻿
+2.
+/LIDAR/POINTS2
+说明
+点云数据话题，默认不启用；可配置为传输
+后雷达点云
+，详见
+激光雷达
+﻿
+消息类型
+sensor_msgs/msg/PointCloud2
+频率
+10Hz
+依赖服务
+AOS/NOS 内仅 rsdriver.service；GOS 内额外依赖 multicast-relay.service
+话题可见性
+AOS+NOS+GOS上均可见（满足上述依赖的情况下）
+参考资料
+﻿
+激光雷达
+﻿
+﻿
+3.
+/IMU
+说明
+IMU 数据（已坐标变换），详见
+IMU
+﻿
+消息类型
+sensor_msgs/msg/Imu
+频率
+200Hz
+依赖服务
+yesense.service
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+IMU
+﻿
+网段说明
+：31 网段 = 
+10.21.31.x
+，33 网段 = 
+10.21.33.x
+。
+﻿
+4.
+/ODOM
+说明
+实时定位位姿
+消息类型
+nav_msgs/msg/Odometry
+频率
+10Hz
+依赖服务
+localization.service
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+定位模块
+﻿
+﻿
+5.
+/initialpose
+说明
+重置定位
+消息类型
+geometry_msgs/msg/PoseWithCovarianceStamped
+频率
+触发式
+依赖服务
+localization.service
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+定位模块
+﻿
+﻿
+6.
+/LOCATION_STATUS
+说明
+定位状态
+消息类型
+drdds/msg/LocationStatus
+频率
+2Hz
+依赖服务
+localization.service
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+定位模块
+﻿
+drdds/msg/LocationStatus 定义如下：
+24
+MetaType header
+  uint64 frame_id
+  Timestamp timestamp
+    int32 sec
+    uint32 nsec
+LocationStatusValue data
+  uint8 total_status                 # 状态码
+  ExecStatusValue exec_val
+    uint8 overtime
+    uint8 numeric_error
+    uint8 timestamp_error
+  LossStatusValue loss_val
+    uint8 odom_error
+    uint8 leg_odom_error
+    uint8 matching_error
+    uint8 pub_error
+  InputStatusValue input_val
+    uint8 lidar
+    uint8 imu
+    uint8 leg_odom
+    uint8 rtk
+    uint8 tag
+    uint8 reflective_strip
+其中 total_status 为定位状态码：
+状态码
+含义
+处理方式
+0
+未初始化
+使用定位初始化指令或 
+drmap apply
+ 后初始化
+1
+正常
+无需处理
+2
+低质量
+matching_error 增大或 inlier_ratio 下降，注意观察
+3
+丢失
+立即停止导航，重新初始化定位
+﻿
+7.
+/MOTION_INFO
+说明
+机器人的运动基本状态和步态
+消息类型
+drdds/msg/MotionInfo
+频率
+20Hz
+依赖服务
+rl_deploy
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+运动控制（ROS2）
+﻿
+drdds/msg/MotionInfo 定义如下：
+17
+MetaType header
+  uint64 frame_id
+  Timestamp timestamp
+    int32 sec
+    uint32 nsec
+MotionInfoValue data
+  float32 vel_x
+  float32 vel_y
+  float32 vel_yaw
+  float32 height
+  MotionStateValue data
+    int32 state
+  GaitValue data
+    uint32 gait
+  float32 payload
+  float32 remain_mile
+字段
+类型
+单位
+说明
+vel_x
+float32
+m/s
+前后速度
+vel_y
+float32
+m/s
+左右速度
+vel_yaw
+float32
+rad/s
+偏航角速度
+height
+float32
+m
+机身高度
+state
+int32
+—
+运动状态
+gait
+uint32
+—
+当前步态
+payload
+float32
+—
+无效参数
+remain_mile
+float32
+km
+预估剩余续航
+其中 
+gait
+ 字段的参数值具体含义如下：
+十六进制值
+十进制值
+名称
+运动模式
+适用场景
+0x1001
+4097
+基础
+标准
+室内平坦地面，手动遥控
+0x1003
+4099
+楼梯
+标准
+台阶/路沿，手动遥控
+0x3002
+12290
+平地
+敏捷
+自主导航 + 平地行走
+0x3003
+12291
+楼梯
+敏捷
+自主导航 + 台阶跨越
+﻿
+8.
+/MOTION_STATE
+说明
+运动状态转换指令
+消息类型
+drdds/msg/MotionState
+频率
+触发式
+依赖服务
+rl_deploy
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+运动控制（ROS2）
+﻿
+drdds/msg/MotionState 定义如下：
+8
+MetaType header
+  uint64 frame_id
+  Timestamp timestamp
+    int32 sec
+    uint32 nsec
+MotionStateValue data
+  int32 state
+其中 
+state
+ 字段的参数值具体含义如下：
+十六进制值
+十进制值
+名称
+说明
+0x0
+0
+空闲
+空闲状态，无动作，等待指令
+0x1
+1
+站立
+临时过渡状态，会自动跳转到RL控制状态
+0x2
+2
+软急停
+关节断电，最高优先级，任意状态下均可触发
+0x3
+3
+开机阻尼
+开机后自动进入的阻尼状态
+0x4
+4
+趴下
+安全趴下状态
+0x11
+17
+RL 控制
+强化学习控制模式，
+唯一可执行移动和步态切换的状态
+﻿
+9.
+/GAIT
+说明
+运控步态切换指令
+消息类型
+drdds/msg/Gait
+频率
+触发式
+依赖服务
+rl_deploy
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+运动控制（ROS2）
+﻿
+drdds/msg/Gait 定义如下：
+8
+MetaType header
+  uint64 frame_id
+  Timestamp timestamp
+    int32 sec
+    uint32 nsec
+GaitValue data
+  uint32 gait
+其中 
+gait
+ 字段的参数值具体含义如下：
+十六进制值
+十进制值
+名称
+运动模式
+适用场景
+0x1001
+4097
+基础
+标准
+室内平坦地面，手动遥控
+0x1003
+4099
+楼梯
+标准
+台阶/路沿，手动遥控
+0x3002
+12290
+平地
+敏捷
+自主导航 + 平地行走
+0x3003
+12291
+楼梯
+敏捷
+自主导航 + 台阶跨越
+﻿
+10.
+/NAV_CMD
+说明
+获取或下发导航规划的速度指令
+消息类型
+drdds/msg/NavCmd
+频率
+触发式
+依赖服务
+basic_server
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+运动控制（ROS2）
+﻿
+drdds/msg/NavCmd 定义如下：
+10
+MetaType header
+  uint64 frame_id
+  Timestamp timestamp
+    int32 sec
+    uint32 nsec
+NavCmdValue data
+  float32 x_vel
+  float32 y_vel
+  float32 yaw_vel
+字段
+类型
+单位
+说明
+x_vel
+float32
+m/s
+前后速度
+y_vel
+float32
+m/s
+左右速度
+yaw_vel
+float32
+rad/s
+偏航角速度
+该话题仅在导航模式下有效，推荐频率≥ 10Hz。当 
+planner
+在运行，或 
+charge_manager
+自主充电状态未处于空闲状态时，可能会发生冲突。
+﻿
+11.
+/HES_STATUS
+说明
+硬急停状态
+消息类型
+drdds/msg/StdMsgInt32
+频率
+1hz
+依赖服务
+rl_deploy
+话题可见性
+31+33网段的主机上可见
+参考资料
+﻿
+硬急停
+﻿
+drdds/msg/StdMsgInt32 定义如下：
+2
+int32 data
+data 值
+含义
+0
+硬急停未触发
+1
+硬急停已触发
+﻿
+12.
+/CHARGE
+说明
+自主充电指令下发
+消息类型
+drdds/msg/StdMsgInt32
+频率
+触发式
+依赖服务
+charge_manager
+话题可见性
+仅33网段的主机上可见
+参考资料
+﻿
+自主充电
+﻿
+drdds/msg/StdMsgInt32 定义如下：
+2
+int32 data
+data 值
+含义
+0
+停止充电
+1
+开始充电
+2
+清除充电状态（强制复位）
+﻿
+13.
+/CHARGE_STATUS
+说明
+自主充电状态
+消息类型
+drdds/msg/StdStatus
+频率
+1HZ
+依赖服务
+charge_manager
+话题可见性
+仅33网段的主机上可见
+参考资料
+﻿
+自主充电
+﻿
+drdds/msg/StdStatus 定义如下：
+3
+int32 state
+uint32 error_code
+state 值
+含义
+0
+空闲
+1
+前往充电桩
+2
+充电中
+3
+退出充电桩
+4
+机器人异常
+5
+在桩上但未充电
+﻿
+14.
+/GPS
+说明
+GNSS 定位数据
+消息类型
+drdds/msg/NavSat
+频率
+1Hz
+依赖服务
+gps_node
+话题可见性
+仅33网段的主机上可见
+参考资料
+﻿
+GNSS
+﻿
+drdds/msg/NavSat 定义如下：
+3
+drdds::msg::MetaType header;
+drdds::msg::NavSatValue data;
+5
+struct MetaType {
+  uint64 frame_id;
+  drdds::msg::Timestamp timestamp;
+};
+54
+struct NavSatValue {
+      @verbatim (language="comment", text=
+        " 纬度（度）")
+      double latitude;
+      @verbatim (language="comment", text=
+        " 经度（度）")
+      double longitude;
+      @verbatim (language="comment", text=
+        " 地面速度（千米/小时）")
+      double speed;
+      @verbatim (language="comment", text=
+        " 航向（度）")
+      double course;
+      @verbatim (language="comment", text=
+        " 定位质量")
+      int32 fixquality;
+      @verbatim (language="comment", text=
+        " 参与定位的卫星数量")
+      int32 numsatellites;
+      @verbatim (language="comment", text=
+        " 海拔高度（米）")
+      double altitude;
+      @verbatim (language="comment", text=
+        " 位置精度因子")
+      double pdop;
+      @verbatim (language="comment", text=
+        " 水平精度因子")
+      double hdop;
+      @verbatim (language="comment", text=
+        " 垂直精度因子")
+      double vdop;
+      @verbatim (language="comment", text=
+        " 总消息数量")
+      int32 totalmessages;
+      @verbatim (language="comment", text=
+        " 当前消息序号")
+      int32 currentmessage;
+      @verbatim (language="comment", text=
+        " 可见卫星总数")
+      int32 visiblesatellites;
+    };
+﻿
+相关文档：
+ROS 2 / DDS 接口总览
+ | 
+设备与传感器概览
+﻿

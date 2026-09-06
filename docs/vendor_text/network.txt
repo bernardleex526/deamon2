@@ -1,0 +1,128 @@
+网络配置
+本文档介绍山猫 M20 的网络架构和网络配置操作。
+目录
+1. 网络架构
+2. 网络连接方式
+2.1 有线以太网
+2.2 WiFi
+3. SSH 连接指南
+4. VNC 远程桌面
+5. 网络连通性检查
+6. 网络配置
+7. 机器人WiFi配置
+﻿
+﻿
+1. 网络架构
+山猫 M20（AOS+NOS）
+山猫 M20 Pro（AOS+NOS+GOS）
+﻿
+﻿
+2. 网络连接方式
+2.1 有线以太网
+●
+三主机之间通过交换机互联
+●
+外部客户端可通过有线网络接入 
+10.21.31.0/24
+ 网段
+2.2 WiFi
+●
+适用于移动调试场景
+●
+机器人默认启用 2.4GHz WiFi AP
+﻿
+﻿
+3. SSH 连接指南
+6
+# 连接到 NOS（导航主机）
+ssh user@10.21.31.106
+# 连接到 GOS（用户开发主机）
+ssh user@10.21.31.104
+详细操作可阅读
+软件使用指南
+。
+﻿
+﻿
+4. VNC 远程桌面
+NOS 和 GOS 支持 VNC 远程桌面访问，可查看完整图形界面。
+详细操作可阅读
+软件使用指南
+。
+主机
+IP 地址
+NOS（导航主机）
+10.21.31.106
+GOS（通用主机）
+10.21.31.104
+连接步骤：
+1.
+SSH 连接后启动 VNC 服务
+（如果尚未启动）：
+2
+x11vnc -display :0 -forever -shared -noxdamage
+2.
+使用 MobaXterm 连接 VNC：
+a.
+点击 
+Session
+﻿
+b.
+选择 
+VNC
+ 模式
+c.
+输入 
+[hostname_ip]
+（如 
+10.21.31.106
+）
+d.
+点击 
+OK
+ 连接
+注意
+：AOS（运动主机 10.21.31.103）不提供 SSH/VNC 访问，用户不应直接操作 AOS。
+﻿
+﻿
+5. 网络连通性检查
+13
+# 从开发者 PC 检查到各主机的连通性
+ping -c 5 10.21.31.103  # AOS
+ping -c 5 10.21.31.106  # NOS
+ping -c 5 10.21.31.104  # GOS
+# 检查 basic_server 端口可达性
+nc -zv 10.21.31.103 30000  # UDP
+nc -zv 10.21.31.103 30001  # TCP
+# 检查主机间互联（从 NOS 出发）
+ssh user@10.21.31.106 "ping -c 3 10.21.31.103"  # NOS -> AOS
+ssh user@10.21.31.106 "ping -c 3 10.21.31.104"  # NOS -> GOS
+﻿
+﻿
+6. 网络配置
+进入主机，手动编辑网卡配置文件：
+6
+# 编辑网络配置文件
+sudo vim /etc/netplan/config.yaml
+# 应用配置生效
+sudo netplan apply
+﻿
+﻿
+修改配置文件时注意格式正确，否则会导致山猫主机断联。
+﻿
+7. 机器人WiFi配置
+以下操作需要在AOS主机中进行：
+●
+设置并启动 2.4GHz 热点
+7
+# 设置 SSID 和密码
+sudo wifi-ap-ctrl.sh setup 2G "MyWiFi" "12345678"
+# 启动热点
+sudo wifi-ap-ctrl.sh start 2G
+●
+设置并启动 5GHz 热点
+7
+# 设置 SSID 和密码
+sudo wifi-ap-ctrl.sh setup 5G "MyWiFi5G" "12345678"
+# 启动热点
+sudo wifi-ap-ctrl.sh start 5G
+﻿

@@ -1,0 +1,46 @@
+robot_nexus:
+  ros__parameters:
+    active: true
+    enable_web: false
+    enable_android: false
+    enable_actions: false
+    enable_opencv: false
+    scan_yaw: 0.0
+    follow_distance: 1.2
+    corridor_width: 0.8
+    # Initial body dimensions, NOT a validated swept leg footprint.
+    frame_front: 0.41
+    frame_back: 0.41
+    frame_left: 0.253
+    frame_right: 0.253
+    direct_timeout: 0.3
+
+m20_cloud_to_scan:
+  ros__parameters:
+    # Vendor merged points are already body coordinates despite lidar_link label.
+    # Empty target_frame prevents a second extrinsic transform.
+    target_frame: ''
+    min_height: -0.1
+    max_height: 0.5
+    angle_min: -3.141592653589793
+    angle_max: 3.141592653589793
+    angle_increment: 0.008726646259971648
+    scan_time: 0.1
+    range_min: 0.1
+    range_max: 12.0
+    use_inf: true
+    concurrency_level: 1
+
+m20_bridge:
+  ros__parameters:
+    dry_run: true
+    commissioned: false
+    aos_host: '10.21.31.103'
+    aos_port: 30000
+    scan_frame: 'lidar_link'
+    max_vx: 0.3
+    max_vy: 0.3
+    max_wz: 0.6
+    stop_front: 0.7
+    stop_back: 0.7
+    stop_half_width: 0.4

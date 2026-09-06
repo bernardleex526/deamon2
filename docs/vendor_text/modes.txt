@@ -1,0 +1,127 @@
+使用模式管理
+本文档介绍山猫 M20 机器人的使用模式管理，包括模式切换和当前模式查询。
+目录
+1. 使用模式概述
+2. 模式切换 —— basic_server 协议
+3. 获取当前模式 —— basic_server 协议
+﻿
+﻿
+1. 使用模式概述
+M20 支持三种使用模式：
+模式值
+名称
+说明
+0
+常规模式
+通过遥控或手动指令直接控制机器人运动
+1
+导航模式
+机器人接收导航任务并自主规划路径执行
+2
+辅助模式
+辅助用户遥控机器人，遇到障碍物时紧急介入避险
+﻿
+﻿
+2. 模式切换 —— basic_server 协议
+调用逻辑建议：
+●
+切换前，系统会自动检查并初始化目标模式所需的传感器与程序；若初始化失败，切换将被拒绝，并保留原模式。
+●
+每次切换使用模式，都会使步态重置为基础步态（0x1001）。
+●
+模式切换不会直接改变自主充电状态。
+●
+开机后默认模式为常规模式。
+通过 
+Type=1101 Cmd=5
+ 切换使用模式，
+Mode
+ 字段为目标模式值（见第 1 节模式表）。该指令为请求-响应模式，通过 TCP（端口 
+30001
+）或 UDP（端口 
+30000
+）发送。
+文档中出现的所有
+ Type / Command 
+均为
+十进制数字
+。
+JSON 请求
+11
+{
+  "PatrolDevice": {
+    "Type": 1101,
+    "Command": 5,
+    "Time": "2026-05-20 10:00:00",
+    "Items": {
+      "Mode": 1
+    }
+  }
+}
+XML 请求
+9
+<?xml version="1.0" encoding="UTF-8"?>
+<PatrolDevice>
+  <Type>1101</Type><Command>5</Command>
+  <Time>2026-05-20 10:00:00</Time>
+  <Items>
+    <Mode>1</Mode>
+  </Items>
+</PatrolDevice>
+字段
+类型
+说明
+Mode
+int
+目标模式值：0=常规，1=导航，2=辅助
+下发控制指令后，请通过基础状态上报（Type=1002, Command=6）确认 
+ControlUsageMode
+ 字段是否已更新为目标模式值。
+﻿
+﻿
+3. 获取当前模式 —— basic_server 协议
+当前模式通过 
+Type=1002 Cmd=6
+（基础状态上报，2Hz 主动推送）中的 
+ControlUsageMode
+ 字段获取。
+JSON 上报
+11
+{
+  "PatrolDevice": {
+    "Type": 1002,
+    "Command": 6,
+    "Time": "2026-05-20 10:00:00",
+    "Items": {
+      "ControlUsageMode": 1
+    }
+  }
+}
+10
+<?xml version="1.0" encoding="UTF-8"?>
+<PatrolDevice>
+  <Type>1002</Type>
+  <Command>6</Command>
+  <Time>2026-05-20 10:00:00</Time>
+  <Items>
+    <ControlUsageMode>1</ControlUsageMode>
+  </Items>
+</PatrolDevice>
+字段
+值
+含义
+ControlUsageMode
+0
+常规模式
+ControlUsageMode
+1
+导航模式
+ControlUsageMode
+2
+辅助模式
+﻿
+相关文档： 
+basic_server 通信协议总览
+| 
+软件开发指南
+ 

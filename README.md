@@ -1,5 +1,17 @@
 # jie_deamon
 
+## M20 Pro 离线适配
+
+本分支新增云深处 M20 Pro 的 GOS 部署配置、点云转扫描接入、basic_server
+速度桥和离线测试，默认 `dry_run=true`，不连接机器人。详细内容：
+
+- [主机职责、数据链路与适配边界](docs/M20_ADAPTATION.md)
+- [离线演练、GOS 部署和实机验收](docs/M20_RUNBOOK.md)
+- [文档证据与版本差异](docs/M20_SOURCES.md)
+
+快速运行不依赖 ROS 的测试：`python -m unittest discover -s test -v`。
+M20 必须使用 `m20.launch.py`，以下原有 D1 启动流程不适用于 M20。
+
 智元机器狗后端服务节点。基于 ROS 2 构建，集成激光雷达目标追踪、Web 可视化控制、Android App 通讯等功能。
 
 ## 介绍视频

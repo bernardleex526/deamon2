@@ -12,12 +12,16 @@ endif()
 
 # 查找依赖
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
+ament_python_install_package(m20_adapter)
+install(PROGRAMS scripts/m20_bridge scripts/m20_mock_inputs DESTINATION lib/${PROJECT_NAME})
 
 # 包含目录
 include_directories(include)
@@ -33,6 +37,7 @@ ament_target_dependencies(robot_nexus
   sensor_msgs
   geometry_msgs
   std_msgs
+  std_srvs
 )
 target_link_libraries(robot_nexus 
   ${OpenCV_LIBS}
@@ -56,6 +61,7 @@ install(TARGETS
 # 安装launch文件
 install(DIRECTORY
   launch
+  config
   DESTINATION share/${PROJECT_NAME}/
 )
 
@@ -66,6 +72,11 @@ install(DIRECTORY
 )
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_m20_tracker test/test_m20_tracker.cpp)
+  ament_target_dependencies(test_m20_tracker sensor_msgs geometry_msgs)
+  target_include_directories(test_m20_tracker PRIVATE ${OpenCV_INCLUDE_DIRS})
+  target_link_libraries(test_m20_tracker ${OpenCV_LIBS} Threads::Threads)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
 endif()

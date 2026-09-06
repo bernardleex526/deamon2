@@ -1,0 +1,457 @@
+山猫M20 外部主机雷达数据接收配置指南
+目录
+1. ROS2环境准备
+1.1 一键安装指令
+1.2 安装过程
+1.3 安装验证
+2. 电气接口
+2.1 接口尺寸
+2.2 网络架构图
+2.3 接口定义
+2.4 航插线定义
+72V供电
+24V供电+网口
+网口
+2.5 航插线安装步骤
+3. 网络连接
+3.1 宿主机网卡映射（以VMware为例）
+3.2 虚拟机网络模式切换
+3.3 配置静态IP
+3.4 连通性验证
+3.5 网卡添加（参考）
+4. RoboSense雷达驱动SDK安装
+4.1 下载SDK源码
+4.2 依赖安装
+4.3 准备工作空间
+4.4 配置参数文件
+4.5 编译与运行
+5. 服务挂起与话题接收
+5.1 启动雷达组播转发服务
+5.2 启动雷达驱动
+5.3 查看点云话题数据
+1.
+ROS2环境准备
+具体操作请参考开源社区FishROS：
+https://fishros.com/
+﻿
+1.1
+一键安装指令
+2
+wget http://fishros.com/install -O fishros && bash fishros
+1.2
+安装过程
+﻿
+﻿
+﻿
+﻿
+﻿
+﻿
+﻿
+﻿
+在安装过程中，系统将提示选择 ROS 镜像源。建议优先尝试国内镜像源；若下载失败，可切换至 ROS 官方源。
+﻿
+﻿
+请选择 
+ROS 2 Foxy 桌面版（Desktop Full）
+ 进行安装。
+﻿
+﻿
+1.3
+安装验证
+待安装与配置完成后，可通过启动海龟仿真器验证 ROS 2 是否正确安装：
+2
+ros2 run turtlesim turtlesim_node
+﻿
+﻿
+另开一个终端，执行以下命令以启用键盘控制：
+2
+ros2 run turtlesim turtle_teleop_key
+随后，在新终端中使用方向键（↑ ↓ ← →）控制海龟移动。若海龟能正常响应，则表明 ROS 2 已成功安装并运行。
+ 
+2.
+电气接口
+2.1
+接口尺寸
+山猫 M20
+  山猫 M20 Pro
+﻿
+﻿
+﻿
+2.2
+网络架构图
+山猫M20
+山猫M20 Pro
+﻿
+2.3
+接口定义
+机器人对外提供供电接口与通信接口，支持的最大总输出功率为 
+360 W
+，其中 
+24 V 供电接口的最大输出功率为 250 W
+。
+﻿
+﻿
+﻿
+﻿
+【
+注意
+】72V对外供电接口的实际输出范围为56~84V。
+2.4
+航插线定义
+机器人配备了各个接口的标准航插线，其线序定义如下所述。
+72V供电（
+56~84V
+）
+序号
+颜色
+定义
+1
+蓝
+GND
+2
+GND
+3
+棕
+VCC
+4
+VCC
+【
+注意
+】72V对外供电接口的实际输出范围为56~84V。
+24V供电+网口
+序号
+颜色
+定义
+1
+黑
+GND
+2
+红
+24V
+3
+棕
+TX+
+4
+灰
+TX-
+5
+黄
+RX+
+6
+白
+TX2+
+7
+绿
+TX2-
+8
+蓝
+RX2-
+9
+浅绿
+GND
+10
+粉红
+24V
+11
+橙
+RX-
+12
+紫
+RX2+
+网口
+序号
+颜色
+定义
+1
+-
+-
+2
+-
+-
+3
+白橙
+TX+
+4
+橙
+TX-
+5
+白绿
+RX+
+6
+蓝
+TX2+
+7
+白蓝
+TX2-
+8
+棕
+RX2-
+9
+-
+-
+10
+-
+-
+11
+绿
+RX-
+12
+白棕
+RX2+
+2.5
+航插线安装步骤
+电气接口的标配航插线出线口位于机器人背部。为便于操作，建议先拆除侧面的航插面板，再进行航插线束的安装。
+安装完成后，请确认面板下方的对外供电开关已开启，并将航插面板安装至原位。
+﻿
+﻿
+3.
+网络连接
+3.1
+宿主机网卡映射
+（以VMware为例）
+在 
+Windows 任务管理器
+ → 
+性能
+ 页面，查看连接航插线的物理网卡名称（例如：
+Realtek PCIe GbE Family Controller
+）。
+﻿
+﻿
+打开 VMware 虚拟网络编辑器，点击右下角 “
+更改设置 (Change Settings
+)”。找到类型为 
+桥接（Bridged）
+ 的网络适配器，在 “
+桥接至（Bridge to）
+” 下拉菜单中，手动选择上述记录的物理网卡。
+﻿
+﻿
+3.2
+虚拟机网络模式切换
+找到虚拟机设置，点击
+网络适配器
+﻿
+﻿
+将连接方式由 NAT 改为 
+桥接模式 (Bridged)
+，同时勾选 
+复制物理网络连接状态 (Replicate physical network connection state)
+﻿
+﻿
+点击“确定”，并确保物理网线已正确连接至机器人的交换机端口
+3.3
+配置静态IP
+在 Ubuntu 系统中，进入有线网络设置，将连接方式设为 
+Manual（手动）
+，并配置如下参数：
+●
+Address (IP 地址)
+: 
+10.21.31.100
+﻿
+●
+Netmask (子网掩码)
+: 
+255.255.255.0
+﻿
+●
+Gateway (网关)
+: 
+10.21.31.1
+﻿
+﻿
+﻿
+3.4
+连通性验证
+打开终端执行 
+2
+ping 10.21.31.106
+若能收到来自目标地址的数据包，表明物理链路与网络协议栈已成功连通。
+﻿
+﻿
+3.5
+网卡添加（参考）
+为同时实现桥接连接机器狗与 NAT 访问互联网，可在 VMware 中为虚拟机添加第二块网络适配器：
+1.
+虚拟机
+ → 
+设置
+ → 
+添加（Add）
+→ 
+网络适配器（Network Adapter）
+；
+2.
+将新适配器设置为 
+NAT 模式
+；
+3.
+此配置可用于后续雷达驱动下载。
+﻿
+﻿
+4.
+RoboSense
+雷达驱动SDK安装
+参考官方仓库：
+RoboSense-LiDAR/rslidar_sdk
+﻿
+4.1
+下载SDK源码
+﻿
+rslidar_sdk
+项目包含子模块驱动内核
+rs_driver
+。
+克隆后需同步初始化子模块：
+5
+git clone https://github.com/RoboSense-LiDAR/rslidar_sdk.git
+cd rslidar_sdk
+git submodule init
+git submodule update
+﻿
+﻿
+4.2
+依赖安装
+安装Yaml 解析库：
+3
+sudo apt-get update
+sudo apt-get install -y libyaml-cpp-dev
+﻿
+﻿
+安装
+libpcap
+：
+2
+sudo apt-get install -y  libpcap-dev
+﻿
+﻿
+4.3
+准备工作空间
+创建 ROS 2 工作空间，并将
+rslidar_sdk
+工程置于 src 目录下：
+4
+mkdir -p ~/rslidar_ws/src
+cd ~/rslidar_ws/src
+mv ~/rslidar_sdk .
+通过
+ROS2 LiDAR Packet Message
+下载ROS2环境下的雷达packet消息定义
+2
+git clone https://github.com/RoboSense-LiDAR/rslidar_msg.git
+确保 
+rslidar_sdk
+ 与 
+rslidar_msg
+ 位于同一级目录
+﻿
+﻿
+4.4
+配置参数文件
+config.yaml
+附件大小：4.8KB
+为实现点云的正常接收与话题融合，修改配置文件 
+～/rslidar_ws/src/rslidar_sdk/config/config.yaml
+，根据实际网络环境调整以下参数：
+●
+将 
+host_address
+ 设置为主机 IP（如 
+10.21.31.100
+）；
+●
+为多雷达场景添加组播地址配置。
+﻿
+﻿
+手动添加
+组播地址
+用于接收数据：
+14
+# 前雷达配置
+- driver:
+    lidar_type: RSAIRY
+    msop_port: 6691
+    host_address: 10.21.31.100     # 虚拟机接收IP
+    group_address: 224.10.10.201  # 前雷达组播地址
+# 后雷达配置
+- driver:
+    lidar_type: RSAIRY
+    msop_port: 6692
+    host_address: 10.21.31.100     # 虚拟机接收IP
+    group_address: 224.10.10.202  # 后雷达组播地址
+最终修改结果如图所示（仅供参考）：
+﻿
+﻿
+此外，可通过 
+ros_send_point_cloud_topic
+ 参数自定义点云话题名称。本示例以后雷达话题 
+/rslidar_points_rear
+ 为例，用户可根据需要为各雷达分配独立话题。
+﻿
+﻿
+4.5
+编译与运行
+返回
+工作空间目录：
+2
+cd ~/rslidar_ws
+执行以下命令即可编译：
+3
+colcon build
+source install/setup.bash
+﻿
+﻿
+若系统未安装 
+colcon
+，请执行以下命令进行安装：
+6
+# 更新软件源
+sudo apt update
+# 安装 colcon 编译工具及其常用扩展
+sudo apt install python3-colcon-common-extensions
+5.
+服务挂起与话题接收
+5.1
+启动雷达组播转发服务
+确保山猫已升级至V1.1.7及以上版本，雷达数据通过该服务（默认关闭）组播转发。启用步骤如下：
+12
+# 1. 设置服务开机自启（确保机器人重启后转发依然生效）
+sudo systemctl enable multicast-relay.service
+# 2. 立即启动服务（应用当前配置并开始数据转发）
+sudo systemctl start multicast-relay.service
+# 3. 检查服务运行状态（应显示绿色的 active (running)）
+sudo systemctl status multicast-relay.service
+# 4. 查看实时转发日志（确认是否有数据流出，按 Ctrl+C 退出查看）
+sudo journalctl -u multicast-relay.service -f
+服务运行时，状态显示为active（running）。
+﻿
+﻿
+5.2
+启动雷达驱动
+完成第四章节“RoboSense雷达驱动SDK安装”后，启动雷达驱动
+rslidar_sdk start
+文件：
+2
+ros2 launch rslidar_sdk start.py
+﻿
+﻿
+﻿
+﻿
+驱动启动成功后，
+保持终端运行
+（Rviz 窗口可关闭）。
+5.3
+查看点云话题数据
+在订阅话题前，请确保虚拟机与机器狗导航主机（
+10.21.31.106
+）网络连通：
+3
+# 检查是否能访问机器人转发网口
+ping 10.21.31.106
+确认网络畅通且驱动正常运行后，可通过以下命令查看点云数据流：
+3
+# 以前后（rear）雷达独立话题为例
+ros2 topic echo /rslidar_points_rear
+﻿
+﻿
