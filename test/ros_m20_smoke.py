@@ -6,7 +6,7 @@ import subprocess
 import time
 
 # Keep synthetic data off the robot domain and physical network.
-os.environ['ROS_DOMAIN_ID'] = '233'
+os.environ['ROS_DOMAIN_ID'] = '83'
 os.environ['ROS_LOCALHOST_ONLY'] = '1'
 
 import rclpy

@@ -2,6 +2,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <stdio.h>
 #include <termios.h>
+#include <unistd.h>
 
 static float linear_vel = 0.1;
 static float angular_vel = 0.1;

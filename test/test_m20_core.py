@@ -15,6 +15,13 @@ def status(**changes):
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_heartbeat_only_registers_telemetry(self):
+        from unittest.mock import Mock
+        client = UdpClient.__new__(UdpClient)
+        client.send = Mock()
+        client.heartbeat()
+        client.send.assert_called_once_with(100, 100, {})
+
     def test_known_header_and_si_units(self):
         packet = encode(2, 25, velocity_items((0.3, -0.25, 0.4)), 0x1234, '2026-09-06 12:00:00')
         self.assertEqual(packet[:4], bytes.fromhex('eb91eb90'))

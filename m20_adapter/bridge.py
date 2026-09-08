@@ -85,8 +85,7 @@ class Bridge(Node):
                         if 'BasicStatus' in items or 'MotionState' in items:
                             self.guard.update_status(items)
                 if time.monotonic() - self.last_query >= 1.0:
-                    self.client.send(100, 100, {})
-                    self.client.send(1002, 6, {})
+                    self.client.heartbeat()
                     self.last_query = time.monotonic()
             velocity = self.guard.output()
             if self.client:
@@ -122,6 +121,9 @@ def main():
     finally:
         if node:
             node.close()
-            node.destroy_node()
+            try:
+                node.destroy_node()
+            except KeyboardInterrupt:
+                pass
         if rclpy.ok():
             rclpy.shutdown()

@@ -1,7 +1,12 @@
 # M20 Pro 运行与验收手册
 
-本手册中 Linux 指令供后续 Ubuntu/ROS 环境执行。本次已执行的仅为 Windows 上 Python 核心测试、
-语法/结构检查；未执行 ROS launch、ROS smoke、C++ 编译、机器人操作或 CI。
+2026-09-07 已在 GOS 完成源码同步、ARM64/Foxy 构建和隔离域行为测试。
+2026-09-08 已在 GOS root 环境确认新鲜应用层点云和扫描约 10 Hz，完成远程 RViz 显示、
+停止区检查和静止 dry-run 目标预览。最新事实与未通过的运动验收项见
+[2026-09-08 dry-run 记录](M20_DRY_RUN_2026-09-08.md)。
+
+本手册保留离线、Linux 构建和现场验收细节。它不代表机器人已完成实机跟随验收；执行现场步骤前，
+仍必须遵循根目录 [README](../README.md) 的 SOP 和控制权边界。
 
 ## 1. 当前电脑可执行
 
@@ -39,7 +44,7 @@ python3 -m unittest discover -s test -v
 python3 test/ros_m20_smoke.py
 ```
 
-Humble 环境将第一行改为其 setup 路径。smoke 脚本仅适用于 Linux，自动使用 Domain 233 和
+Humble 环境将第一行改为其 setup 路径。smoke 脚本仅适用于 Linux，自动使用 Domain 83 和
 `ROS_LOCALHOST_ONLY=1`，启动完整点云转换、原算法和桥，检查前向跟随、目标丢失、近障锁定和输入中断。
 CI 提供同样的 Foxy/Humble 构建与 smoke 流程；未执行前不能判为通过。
 
@@ -49,7 +54,7 @@ CI 提供同样的 Foxy/Humble 构建与 smoke 流程；未执行前不能判为
 
 ```bash
 source ~/m20_ws/install/setup.bash
-export ROS_DOMAIN_ID=233
+export ROS_DOMAIN_ID=83
 export ROS_LOCALHOST_ONLY=1
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ```
@@ -101,7 +106,7 @@ Web 只作为离线可视化选项：`enable_web:=true`，对应 8080/8890 端�
 
 ## 4. rosbag 回放
 
-在隔离的 Domain 233 上运行，录包应包含原始 `/LIDAR/POINTS`。
+在隔离的 Domain 83 上运行，录包应包含原始 `/LIDAR/POINTS`。
 
 ```bash
 ros2 launch jie_deamon m20.launch.py use_sim_time:=true
@@ -140,22 +145,58 @@ timedatectl
 确认 frame、x/y/z、点云合并、频率约 10 Hz 和 header 时间戳。
 
 NOS/GOS 检查 `systemctl cat multicast-relay.service` 与运行日志，确认实际转发主机及网卡，
-再按厂商文档在**服务所在主机**启用：
+再按厂商文档在**服务所在主机**为本次运行启动：
 
 ```bash
-sudo systemctl enable --now multicast-relay.service
+sudo systemctl start multicast-relay.service
 systemctl status multicast-relay.service --no-pager
 journalctl -u multicast-relay.service -n 50 --no-pager
 ```
+
+是否开机自启是单独的运维决定，不是 dry-run 或现场测试的隐含步骤。
 
 如果两台都没有该 unit，先确认固件与厂商交付；不要自行猜测 relay 命令或修改雷达目的地址。
 PTP：检查 rsdriver 日志 `ptp=0x1`、时间差，确认 NOS Master/GOS Slave 同步。
 使用真实回包判断 UDP 可达；`nc -zv ...30000` 默认是 TCP，不能证明 UDP 服务工作。
 
-## 6. GOS 编译与被动验证
+## 6. NOS 官方建图与 GOS 被动观察
+
+`jie_deamon` 不负责 SLAM 或地图保存。官方建图程序只在 NOS 上运行；GOS 不启动
+`m20.launch.py`，不启动桥接节点，也不发布任何速度命令。
+
+建图前确认机器人静止站立、路线已清理、门已打开、无人员频繁穿行或雷达遮挡。NOS 上按需要启动：
+
+```bash
+# 默认名称、启动 RViz、结束后激活地图。
+sudo drmap mapping
+
+# 指定地图名称，或在不需要 RViz 时添加 -s；不自动激活地图时添加 -b。
+sudo drmap mapping -n my_map -s
+```
+
+出现 `Building map` 后，操作者使用原厂遥控器按预定路线平稳行走。结束时在 NOS 执行：
+
+```bash
+sudo drmap stop_mapping
+```
+
+若只需要在 GOS 被动检查同一份融合点云的二维切片，使用下面的观察器。它只有一个
+`pointcloud_to_laserscan` 进程，不包含 `robot_nexus`、`m20_bridge`、Web、Android、AOS UDP
+或 `/cmd_vel` 发布者：
+
+```bash
+source /opt/robot/scripts/setup_ros2.sh
+source ~/m20_ws/install/setup.bash
+ros2 launch jie_deamon m20_mapping.launch.py
+```
+
+输入为融合 `/LIDAR/POINTS`，输出为本地 `/m20/mapping_scan`。不要修改
+`send_separately`；独立双雷达模式会影响原厂导航、定位与充电功能。
+
+## 7. GOS 编译与被动验证
 
 在 GOS 用户工作区编译，不覆盖系统 `/opt/robot`。采用原厂 Foxy 环境与本地 ARM64 OpenCV/依赖。
-先保持 `dry_run=true`，启动：
+在没有运行官方建图、导航、定位或充电任务时，才可保持 `dry_run=true` 启动跟随链路：
 
 ```bash
 source /opt/robot/scripts/setup_ros2.sh
@@ -170,7 +211,7 @@ taskset -c 4-7 ros2 launch jie_deamon m20.launch.py
 配置中的身体排除区只用于原算法，桥不屏蔽自体点。不能为消除误停而盲目扩大排除区域。
 确认负载下的 `/m20/scan`、raw/guarded 指令频率，测量 CPU、RSS、温度与端到端时间。
 
-## 7. 运控接管验收顺序
+## 8. 运控接管验收顺序
 
 以下是机器到手后执行的清单，本次没有执行任何一项实体动作。
 
@@ -187,7 +228,7 @@ taskset -c 4-7 ros2 launch jie_deamon m20.launch.py
 ros2 launch jie_deamon m20.launch.py dry_run:=false commissioned:=true
 ```
 
-6. live 启动即向 AOS 发心跳/查询和零速度，但不会自动 arm、起立、趴下、切换模式或步态。
+6. live 启动即向 AOS 发心跳和零速度，但不会自动 arm、起立、趴下、切换模式或步态。
    它也不验证 planner 已关闭；`commissioned=true` 是操作方确认已经完成接管检查，不是自动检测结果。
 7. 先确认 `/m20/bridge_status` 能稳定收到完整 BasicStatus，没有协议拒绝；保持算法不使能。
 8. 选定实测目标，调用跟随使能和 `/m20/arm`，验证 X/Y/Yaw 方向、零速和小速度响应。不要跳过最低速度验证。
@@ -198,7 +239,7 @@ ros2 launch jie_deamon m20.launch.py dry_run:=false commissioned:=true
 软件中的零速度是减速停车请求，**不是**软急停。M20 软急停意味着关节断电，不能替代日常停车。
 本桥没有执行软急停、站立、趴下和步态切换的自动状态机，继续使用原厂控制端完成这些操作。
 
-## 8. 验收记录模板
+## 9. 验收记录模板
 
 | 项目 | 记录 |
 | --- | --- |

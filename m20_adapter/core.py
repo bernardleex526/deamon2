@@ -64,6 +64,10 @@ class UdpClient:
         self.socket.send(packet)
         self.message_id = (self.message_id + 1) & 65535
 
+    def heartbeat(self):
+        # This firmware streams BasicStatus after heartbeat registration.
+        self.send(100, 100, {})
+
     def receive(self):
         # Bound work so telemetry cannot starve the 20 Hz stop timer.
         result = []

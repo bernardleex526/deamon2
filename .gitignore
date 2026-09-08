@@ -3,3 +3,9 @@ __pycache__/
 build/
 install/
 log/
+*.bag
+*.db3
+*.mcap
+*.pcd
+*.ply
+maps/

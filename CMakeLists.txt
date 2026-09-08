@@ -22,6 +22,8 @@ find_package(OpenCV REQUIRED)
 find_package(Threads REQUIRED)
 ament_python_install_package(m20_adapter)
 install(PROGRAMS scripts/m20_bridge scripts/m20_mock_inputs DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/m20_cloud_probe.py scripts/m20_status_probe.py
+  DESTINATION lib/${PROJECT_NAME})
 
 # 包含目录
 include_directories(include)
