@@ -12,6 +12,7 @@
 #include <vector>
 #include <functional>
 #include <chrono>
+#include <cstdint>
 
 // ----- 常量定义 -----
 constexpr double FOLLOW_DIST = 0.4;           // 机器人与目标的预设距离 (米)
@@ -80,6 +81,7 @@ struct SharedState {
     std::mutex target_mutex;
     double target_x = FOLLOW_DIST;
     double target_y = 0.0;
+    std::uint64_t target_selection = 0;
     
     // 速度指令缓存 (需要保护)
     std::mutex velocity_mutex;
@@ -113,6 +115,20 @@ struct SharedState {
     
     // 设置目标位置
     void setTarget(double x, double y) {
+        std::lock_guard<std::mutex> lock(target_mutex);
+        target_x = x;
+        target_y = y;
+        ++target_selection;
+    }
+
+    std::uint64_t getTargetSelection(double& x, double& y) {
+        std::lock_guard<std::mutex> lock(target_mutex);
+        x = target_x;
+        y = target_y;
+        return target_selection;
+    }
+
+    void updateTrackedTarget(double x, double y) {
         std::lock_guard<std::mutex> lock(target_mutex);
         target_x = x;
         target_y = y;

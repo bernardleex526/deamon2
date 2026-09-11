@@ -1,5 +1,17 @@
 # deamon2 / `jie_deamon` for M20 Pro
 
+**September 11, 2026 software status:** the M20 profile has bounded basic-gait
+approach/turn control, latched target association, body-clearance APF, and
+timestamp-aware tracking interlocks. See the detailed
+[M20 fixes and dry-run SOP](docs/M20_FIXES_20260911.md).
+Physical following is **not accepted**. Software tests and recorded-scan replay
+do not replace supervised robot-side stop, target-loss, and motion validation.
+
+**Release review fixes:** stale-request latching, invalid timestamps, and queued
+pre-fault target selection now have regression tests. CI uses the shared
+`m20_functional` label, including both offline scenarios. Passing software tests
+is not approval to run live control without physical commissioning.
+
 M20 Pro follow-layer adaptation for ROS 2 Foxy on GOS. This repository is not
 the M20 navigation stack: NOS factory `drmap` remains responsible for mapping,
 localization, planning, charging integration, and maps. AOS remains responsible
@@ -7,11 +19,40 @@ for locomotion. `jie_deamon` consumes a fused lidar cloud, projects a 2D scan,
 computes a candidate follow velocity, and applies a fail-closed gate before the
 optional AOS UDP bridge.
 
-**Status on September 8, 2026:** GOS has delivered live fused cloud and scan
-data near 10 Hz. Remote RViz rendering, stop-zone checks, and a stationary
-dry-run target preview have been demonstrated. Physical following is **not
-accepted**. Do not set `commissioned:=true` or start the live bridge until the
-acceptance gates in [SOP 8](#8-sop-controlled-live-walk-test) are complete.
+The earlier September 11 deployment at `/home/user/m20_fixed_20260911` predates
+the new selection-service API. Publishing to GitHub does not update that robot
+installation. The examples below use a **fresh** `/home/user/m20_release_ws`;
+clone the current source and rebuild rather than merely sourcing an old install.
+The older workspaces remain comparison snapshots. Verify the source commit and
+`ros2 pkg prefix jie_deamon` in every terminal. Do not set
+`commissioned:=true` or start the live bridge until the acceptance gates in
+[SOP 8](#8-sop-controlled-live-walk-test) are complete.
+
+## Current Follow Policy
+
+- Select a point cluster manually; human classification is not required.
+  Front-lidar range 1.5 m is approximately body-frame `(1.82028, 0)` under the
+  existing extrinsic assumption, not a new calibration or a permanent target lock.
+- The desired planar distance from the body origin to the selected cluster is
+  1.2 m. Distance and bearing hysteresis select holding, turning, or approaching.
+- Nonzero forward intent is 0.22-0.30 m/s; nonzero yaw intent has magnitude
+  0.52-0.60 rad/s. The M20 profile turns before advancing and commands no lateral
+  motion or automatic reverse. These are software limits, not measured robot speeds.
+- The profile requires basic gait `4097` (`0x1001`). Do not switch gait without
+  revalidating the controller and guard contract.
+- Association requires at least three scan points. Ambiguous candidates, target
+  loss, or invalid/stale scans latch a stop; returning points do not automatically
+  resume following. Reselect, verify, enable calculation, then separately arm.
+- M20 selection uses `/robot_nexus/select_target`: a single atomic request carries
+  coordinates, frame, issue time, and the server's current fault epoch. Use
+  `ros2 run jie_deamon m20_select_target.py 1.82028 0`; this command never enables
+  or arms. The old unstamped `/robot_nexus/target` Point topic is legacy-only.
+- Body-clearance APF can limit the speed budget. If it cannot support a valid
+  gait speed, the controller stops; the full front/rear stop zone is unchanged.
+- Tracking and scan freshness use an acquisition-to-use budget of 0.5 s, with
+  already elapsed message age deducted. Command timeout remains 0.3 s.
+- Runtime configuration and clock-mode changes are rejected. Edit configuration
+  while stopped and restart; use the target topic and services for operator actions.
 
 ## Safety Boundary
 
@@ -60,8 +101,11 @@ preserves the fused physical coordinates despite the `lidar_link` label.
 | Publish | `/m20/cmd_vel_raw` | Tracker intent, never proof of movement |
 | Publish | `/m20/cmd_vel_guarded` | Gate preview in dry-run; AOS command in live mode |
 | Publish | `/m20/bridge_status` | JSON gate state and current reason |
-| Subscribe | `/robot_nexus/target` | Operator-selected body-frame XY target |
-| Service | `/robot_nexus/set_moving` | Enables/disables follow computation only |
+| Publish | `/robot_nexus/tracking_status` | Target validity, selection generation, controller and APF diagnostics |
+| Service | `/robot_nexus/select_target` | Timestamped, epoch-checked selection using `rcl_interfaces/srv/SetParametersAtomically` |
+| Legacy only | `/robot_nexus/target` | Unstamped Point input; absent in the gait-aware M20 profile |
+| Service | `/robot_nexus/enable_follow` | Timestamped enable bound to selection ID and fault epoch; no platform arm |
+| Service | `/robot_nexus/set_moving` | `false` always disables; `true` rejected in the M20 profile |
 | Service | `/m20/arm` | Manually arms/disarms a healthy bridge |
 
 ## 1. Build and Offline Tests
@@ -70,13 +114,14 @@ Use Foxy on the M20 host. Humble compatibility checks do not replace Foxy/M20
 validation.
 
 ```bash
-cd ~/m20_ws/src/jie_deamon
-source /opt/robot/scripts/setup_ros2.sh
-source ~/m20_ws/install/setup.bash
-cd ~/m20_ws
+mkdir -p /home/user/m20_release_ws/src
+git clone https://github.com/bernardleex526/deamon2.git /home/user/m20_release_ws/src/jie_deamon
+cd /home/user/m20_release_ws
+source /opt/ros/foxy/setup.bash
 colcon build --packages-select jie_deamon --cmake-args -DBUILD_TESTING=ON
 source install/setup.bash
-colcon test --packages-select jie_deamon --ctest-args -R test_m20_tracker --output-on-failure
+colcon test --packages-select jie_deamon --return-code-on-test-failure \
+  --ctest-args -L m20_functional --output-on-failure
 colcon test-result --verbose
 cd src/jie_deamon
 python3 -m unittest discover -s test -v
@@ -89,8 +134,8 @@ from inherited repository-wide lint failures.
 For an isolated synthetic test, use only a non-robot domain:
 
 ```bash
-source /opt/robot/scripts/setup_ros2.sh
-source ~/m20_ws/install/setup.bash
+source /opt/ros/foxy/setup.bash
+source /home/user/m20_release_ws/install/setup.bash
 export ROS_DOMAIN_ID=83
 export ROS_LOCALHOST_ONLY=1
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -141,7 +186,7 @@ publisher path. Source before enabling `set -u` or starting diagnostics.
 sudo -i
 export ROS_DISTRO=foxy
 source /opt/robot/scripts/setup_ros2.sh
-source /home/user/m20_ws/install/setup.bash
+source /home/user/m20_release_ws/install/setup.bash
 export ROS_DOMAIN_ID=0
 export ROS_LOCALHOST_ONLY=0
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
@@ -189,15 +234,21 @@ Keep that terminal open. In another GOS root terminal with the environment from
 ros2 run jie_deamon m20_cloud_probe.py --seconds 12 --scan-topic /m20/scan
 ros2 param get /m20_bridge dry_run
 ros2 param get /m20_bridge commissioned
-bash /home/user/m20_ws/run_m20_guard_readonly.sh
+timeout 5s ros2 topic echo /m20/bridge_status std_msgs/msg/String
+timeout 5s ros2 topic echo /robot_nexus/tracking_status std_msgs/msg/String
 ```
 
-The bounded guard diagnostic does not call arm, set-moving, or publish control.
+These bounded topic readers do not call arm, set-moving, or publish control;
+`timeout` normally exits with code 124 when the observation window ends.
 For a clear static area, require fresh scans, frame `lidar_link`, no malformed
-scan, `valid_but_obstacle=0`, `armed=false`, and zero guarded velocity. A bridge
+scan, `armed=false`, and zero guarded velocity. Inspect the full scan to confirm
+front, rear, and side clearance; zero guarded velocity alone is not proof of it. A bridge
 reason can remain `invalid scan or obstacle` after later clear scans because the
-gate latches until a manual arm. Use `clear`, `stop_hits`, and scan counts to
-determine the current sensor condition.
+gate latches until a manual arm. Do not arm merely to clear the displayed reason.
+
+Before selection, `tracking_valid=false` and a target-unavailable/unselected
+reason are expected. Use the cloud/scan probe and tracking/bridge status together;
+bridge status alone is not a complete obstacle-clearance report.
 
 ## 6. SOP: Remote RViz on the Engineering Computer
 
@@ -209,7 +260,7 @@ ssh -X 104
 sudo -i
 export ROS_DISTRO=foxy
 source /opt/robot/scripts/setup_ros2.sh
-source /home/user/m20_ws/install/setup.bash
+source /home/user/m20_release_ws/install/setup.bash
 export ROS_DOMAIN_ID=0 ROS_LOCALHOST_ONLY=0 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 export LIBGL_ALWAYS_SOFTWARE=1 QT_X11_NO_MITSHM=1
 rviz2
@@ -231,33 +282,46 @@ used software OpenGL at about 1 FPS, suitable only for inspection.
 ## 7. SOP: Static Target and Dry-Run Preview
 
 Prerequisites: clear stop zone, stationary robot, emergency-stop operator, and
-an identified human point cluster in scan/RViz. This does not arm the bridge or
+an identified operator-selected point cluster in scan/RViz. This does not arm the bridge or
 open an AOS socket.
 
 1. Record the target's actual body-frame XY coordinate from scan data.
-2. Send one target and enable the algorithm for a bounded observation:
+2. Send one target and inspect tracking status before enabling calculation:
 
    ```bash
-   ros2 topic pub --once /robot_nexus/target geometry_msgs/msg/Point \
-     '{x: 1.88, y: 0.03, z: 0.0}'
-   ros2 service call /robot_nexus/set_moving std_srvs/srv/SetBool '{data: true}'
-   bash /home/user/m20_ws/run_m20_guard_readonly.sh
+   ros2 run jie_deamon m20_select_target.py 1.82028 0 --frame lidar_link
+   timeout 5s ros2 topic echo /robot_nexus/tracking_status std_msgs/msg/String
    ```
 
-3. Inspect `/m20/cmd_vel_raw` for correct expected direction. Guarded velocity
-   must remain zero in dry-run.
+3. Confirm the selected cluster is correct and `tracking_valid=true` remains
+   stable, then enable the calculation preview:
+
+   ```bash
+   ros2 run jie_deamon m20_enable_follow.py
+   timeout 5s ros2 topic echo /m20/cmd_vel_raw geometry_msgs/msg/Twist
+   timeout 5s ros2 topic echo /m20/bridge_status std_msgs/msg/String
+   ```
+
+   Require `dry_run=true`, `armed=false`, and zero guarded velocity in this
+   preview. Nonzero raw velocity proves only algorithm intent, not robot motion.
 4. Immediately disable calculation after the bounded observation:
 
    ```bash
    ros2 service call /robot_nexus/set_moving std_srvs/srv/SetBool '{data: false}'
-   bash /home/user/m20_ws/run_m20_guard_readonly.sh
+   timeout 5s ros2 topic echo /m20/bridge_status std_msgs/msg/String
    ```
 
-The September 8 preview produced nonzero raw output and a lateral component
-near `+0.50 m/s`. This is a blocker, not a pass: investigate target identity,
-scan geometry, corridor centering, and APF avoidance. Dry-run must next prove
-correct behavior for target left/right movement, target loss, occlusion, scan
-loss, and near-obstacle reappearance.
+The old September 8 lateral output is historical evidence, not the current
+M20 control policy. The current policy commands Y=0. On any lost, ambiguous,
+or stale target, inspect the cause before reselecting; do not automate repeated
+reselection or arming. Physical occlusion and stop acceptance are still required.
+The selection command reads a fresh `fault_epoch` from tracking status and makes
+one request. If the epoch changes while it is queued, the request is rejected;
+read the reason and inspect the scene before issuing a new manual selection.
+The enable tool also sends a single timestamped request bound to the observed
+selection ID and fault epoch. Faults, reselection, and explicit disable invalidate
+queued enable requests. It does not call `/m20/arm`; a live bridge may execute
+intent only when separately armed. Never use these tools as an automatic retry loop.
 
 ## 8. SOP: Controlled Live Walk Test
 
@@ -271,7 +335,7 @@ a responsible operator explicitly authorizing the test.
    stop `basic_server`, `rl_deploy`, radar, or time synchronization services.
 3. Use the factory interface to verify fresh BasicStatus: `MotionState=17`,
    `ControlUsageMode=1`, `Direction=0`, `Charge=0`, `HES=0`, `Sleep=0`, and a
-   tested supported gait. Read telemetry without mode or velocity commands:
+   `Gait=4097`. Read telemetry without mode or velocity commands:
 
    ```bash
    ros2 run jie_deamon m20_status_probe.py --seconds 6
@@ -292,10 +356,11 @@ a responsible operator explicitly authorizing the test.
    ownership from factory tasks, change posture, select gait, or arm itself.
 7. Inspect stable `/m20/bridge_status` and complete BasicStatus while follow is
    disabled. An ACK is not movement acceptance.
-8. With a validated target and responsible operator, call set-moving then
-   `/m20/arm` only for the first low-speed trial. Test X, Y, and yaw signs
-   separately. Do not use the observed `+0.50 m/s` lateral preview as a safe
-   physical command.
+8. Reselect the target after restarting: selection is not persisted across
+   launches. Verify fresh tracking, use `m20_enable_follow.py`, then `/m20/arm` only for an
+   explicitly authorized, time-bounded trial with a responsible operator.
+   Validate forward and yaw response; this profile does not command Y motion.
+   Do not increase limits or suppress obstacles simply to clear a gate.
 9. Repeat acceptance for target loss, occlusion, near obstacle, scan stop,
    bridge stop, network loss, manual takeover, charging state, and emergency
    stop. Measure real stop distance and robot-side timeout behavior.
@@ -319,6 +384,28 @@ relay because it can be active for the boot while disabled at boot.
 
 ## Evidence and Documents
 
+- [September 11 controller fixes and current SOP](docs/M20_FIXES_20260911.md)
+  describes the current profile, generation/freshness gates and test boundaries.
+- Before the selection-service update, local Humble and native GOS/Foxy runs
+  passed six functional groups and native replay of a 233-frame scan sequence
+  had no target loss and commanded Y=0. Those results describe that snapshot.
+- The current functional label adds node callback-order, malformed timestamp,
+  queued selection and recovery coverage; CI runs the same label for Foxy and
+  Humble. Local runs and replay are not a GitHub Actions success claim or physical
+  following acceptance. In-memory armed/guard output is not a live AOS command.
+- The release-review revision was tested locally on Humble: seven functional
+  groups, including 19 tracker/controller tests, eight node ordering tests,
+  37 Python unit tests and five bridge/request-contract tests. This revision
+  has not been redeployed to GOS; its Foxy CI result must be checked separately.
+- Full repository lint is not all green; inherited style/copyright issues and
+  third-party/schema tooling limitations are tracked separately from functional
+  tests. Do not describe the focused test selection as full-suite acceptance.
+
+- [Offline follow simulation and September 9 algorithm fixes](docs/M20_OFFLINE_FOLLOW.md)
+  runs the production C++ tracker and Python guard without ROS nodes or robot
+  connections. This document describes the historical minimal adaptation;
+  use the September 11 document for the current gait-aware profile. Real robot
+  commissioning is still required.
 - [M20 adaptation boundary and protocol reasoning](docs/M20_ADAPTATION.md)
 - [Expanded runbook and acceptance template](docs/M20_RUNBOOK.md)
 - [September 7 GOS deployment record](docs/M20_DEPLOYMENT_2026-09-07.md)
@@ -335,6 +422,8 @@ launch/m20_mapping.launch.py    Passive observer for NOS mapping
 m20_adapter/                    UDP framing, gate, probes, mock source
 scripts/m20_cloud_probe.py      Bounded read-only sensor probe
 scripts/m20_status_probe.py     Heartbeat-only AOS telemetry probe
+scripts/m20_select_target.py    One-shot stamped selection; no enable or arm
+scripts/m20_enable_follow.py    One-shot epoch-bound calculation enable; no arm
 test/                           Isolated protocol, guard, tracker, ROS tests
 docs/                           Evidence, deployment, and acceptance records
 ```

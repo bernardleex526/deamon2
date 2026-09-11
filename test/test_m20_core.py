@@ -92,6 +92,43 @@ class GuardTests(unittest.TestCase):
         self.guard.update_scan(True, True)
         self.assertTrue(self.guard.arm())
 
+    def test_tracking_required_cannot_arm_without_target(self):
+        self.guard.require_tracking = True
+        self.guard.update_status(status())
+        self.guard.update_scan(True, True)
+        self.assertFalse(self.guard.arm())
+
+    def test_tracking_loss_change_and_timeout_latch(self):
+        for fault in ('lost', 'changed', 'timeout'):
+            g = Guard(clock=lambda: self.now, require_tracking=True, expected_gait=4097)
+            g.update_status(status(Gait=4097))
+            g.update_scan(True, True)
+            g.update_tracking(True, 1)
+            self.assertTrue(g.arm())
+            g.update_command((.22, 0., .52))
+            self.assertEqual(g.output(), (.22, 0., .52))
+            if fault == 'timeout':
+                self.now += .31
+                g.update_status(status(Gait=4097))
+                g.update_scan(True, True)
+                g.update_command((.22, 0., .52))
+            else:
+                g.update_tracking(fault != 'lost', 2 if fault == 'changed' else 1)
+            self.assertEqual(g.output(), ZERO)
+            self.assertFalse(g.armed)
+            g.update_tracking(True, 3)
+            self.assertEqual(g.output(), ZERO)
+
+    def test_controller_gait_change_disarms_even_if_supported(self):
+        g = Guard(clock=lambda: self.now, expected_gait=4097)
+        g.update_status(status(Gait=4097))
+        g.update_scan(True, True)
+        self.assertTrue(g.arm())
+        g.update_command((.22, 0., .52))
+        g.update_status(status(Gait=12290))
+        self.assertFalse(g.armed)
+        self.assertEqual(g.output(), ZERO)
+
     def test_default_disarmed_and_arm_requires_status_and_scan(self):
         self.assertEqual(self.guard.output(), ZERO)
         self.assertFalse(self.guard.arm())

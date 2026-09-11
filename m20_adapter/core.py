@@ -88,16 +88,25 @@ class UdpClient:
 
 class Guard:
     def __init__(self, clock=time.monotonic, limits=(0.3, 0.3, 0.6),
-                 command_timeout=0.3, scan_timeout=0.5, status_timeout=1.5):
+                 command_timeout=0.3, scan_timeout=0.5, status_timeout=1.5,
+                 require_tracking=False, tracking_timeout=0.3, expected_gait=0):
         if (len(limits) != 3 or any(not math.isfinite(v) or v <= 0 for v in limits)
                 or any(not math.isfinite(v) or v <= 0 for v in
-                       (command_timeout, scan_timeout, status_timeout))):
+                       (command_timeout, scan_timeout, status_timeout, tracking_timeout))):
             raise ValueError('limits and timeouts must be positive and finite')
         self.clock = clock
         self.limits = limits
         self.command_timeout = command_timeout
         self.scan_timeout = scan_timeout
         self.status_timeout = status_timeout
+        if expected_gait != 0 and expected_gait not in GAITS:
+            raise ValueError('invalid expected gait')
+        self.expected_gait = expected_gait
+        self.require_tracking = require_tracking
+        self.tracking_timeout = tracking_timeout
+        self.tracking_valid = False
+        self.tracking_at = -math.inf
+        self.selection_id = None
         self.armed = False
         self.reason = 'not armed'
         self.status = {}
@@ -138,12 +147,35 @@ class Guard:
             return 'estop, charging or sleeping'
         if s.get('Gait') not in GAITS:
             return 'unsupported gait'
+        if self.expected_gait and s.get('Gait') != self.expected_gait:
+            return 'gait changed; recommission controller'
         return ''
 
-    def update_scan(self, valid, clear):
+    def update_tracking(self, valid, selection_id, age=0.0):
+        if not math.isfinite(age) or age < 0 or age > self.tracking_timeout:
+            valid = False
+        if type(valid) is not bool or type(selection_id) is not int or selection_id <= 0:
+            valid = False
+        if self.require_tracking and selection_id != self.selection_id:
+            self.disarm('target selection changed')
+        self.selection_id = selection_id
+        self.tracking_valid = valid
+        self.tracking_at = self.clock() - age
+        if self.require_tracking and not valid:
+            self.disarm('target unavailable')
+
+    def tracking_problem(self):
+        if self.require_tracking and (not self.tracking_valid or
+                self.clock() - self.tracking_at > self.tracking_timeout):
+            return 'target unavailable or stale'
+        return ''
+
+    def update_scan(self, valid, clear, age=0.0):
+        if not math.isfinite(age) or age < 0 or age > self.scan_timeout:
+            valid = clear = False
         self.scan_clear = valid and clear
         if valid:
-            self.scan_at = self.clock()
+            self.scan_at = self.clock() - age
         if not self.scan_clear:
             self.disarm('invalid scan or obstacle')
 
@@ -156,7 +188,7 @@ class Guard:
             self.command_at = self.clock()
 
     def arm(self):
-        problem = self.status_problem()
+        problem = self.status_problem() or self.tracking_problem()
         if not self.scan_clear or self.clock() - self.scan_at > self.scan_timeout:
             problem = problem or 'scan unavailable'
         if problem:
@@ -172,7 +204,7 @@ class Guard:
     def output(self):
         if not self.armed:
             return ZERO
-        problem = self.status_problem()
+        problem = self.status_problem() or self.tracking_problem()
         if self.clock() - self.scan_at > self.scan_timeout or not self.scan_clear:
             problem = problem or 'scan stale'
         if self.clock() - self.command_at > self.command_timeout:

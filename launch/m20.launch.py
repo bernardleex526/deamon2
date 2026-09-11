@@ -1,4 +1,6 @@
 import os
+import yaml
+from m20_adapter.profile import validate_follow_profile
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
@@ -16,6 +18,8 @@ def generate_launch_description():
         web = LaunchConfiguration('enable_web').perform(context).lower() in ('true', '1')
         if live and web:
             raise RuntimeError('M20 live profile requires enable_web:=false; use ROS operator interfaces')
+        with open(LaunchConfiguration('config').perform(context)) as stream:
+            validate_follow_profile(yaml.safe_load(stream) or {}, live=live)
         return []
     return LaunchDescription([
         DeclareLaunchArgument('config', default_value=os.path.join(share, 'config', 'm20.yaml')),

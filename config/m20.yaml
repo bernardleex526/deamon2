@@ -7,6 +7,24 @@ robot_nexus:
     enable_opencv: false
     scan_yaw: 0.0
     follow_distance: 1.2
+    gait_aware_follow: true
+    minimum_target_points: 3
+    target_cluster_gap: 0.12
+    target_ambiguity_margin: 0.04
+    # Acquisition-to-use budget, matching the existing scan freshness limit.
+    tracking_timeout: 0.5
+    scan_frame: 'lidar_link'
+    distance_stop: 0.06
+    distance_start: 0.10
+    angle_stop: 0.07
+    angle_start: 0.15
+    min_follow_vx: 0.22
+    max_follow_vx: 0.30
+    min_follow_wz: 0.52
+    max_follow_wz: 0.60
+    apf_clearance: 0.60
+    slowdown_clearance: 0.40
+    emergency_clearance: 0.12
     corridor_width: 0.8
     # Initial body dimensions, NOT a validated swept leg footprint.
     frame_front: 0.41
@@ -41,6 +59,9 @@ m20_bridge:
     max_vx: 0.3
     max_vy: 0.3
     max_wz: 0.6
+    require_tracking_status: true
+    tracking_timeout: 0.5
+    expected_gait: 4097
     stop_front: 0.7
     stop_back: 0.7
     stop_half_width: 0.4

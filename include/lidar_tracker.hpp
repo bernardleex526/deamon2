@@ -8,12 +8,14 @@
 
 #include "common_types.hpp"
 #include "kalman_filter.hpp"
+#include "gait_follow_controller.hpp"
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <algorithm>
 #include <functional>
+#include <limits>
 
 /**
  * @class LidarTracker
@@ -29,10 +31,66 @@ public:
         double frame_back = ROBOT_FRAME_BACK;
         double frame_left = ROBOT_FRAME_LEFT;
         double frame_right = ROBOT_FRAME_RIGHT;
+        bool gait_aware = false;
+        GaitFollowController::Config gait;
+        double apf_clearance = .60;
+        double slowdown_clearance = .40;
+        double emergency_clearance = .12;
+        int minimum_target_points = 1;
+        double target_cluster_gap = .12;
+        double target_ambiguity_margin = .04;
     };
-    void configure(const Config& config) { config_ = config; }
+    struct Diagnostics {
+        int target_points = 0;
+        double target_x = 0, target_y = 0;
+        double corridor = 0, repulse_x = 0, repulse_y = 0;
+        geometry_msgs::msg::Twist before_limit = geometry_msgs::msg::Twist();
+        bool tracking_valid = false;
+        const char* tracking_state = "unselected";
+        const char* controller_state = "holding";
+    };
+    const Diagnostics& diagnostics() const { return diagnostics_; }
+    void configure(const Config& config) {
+        config_ = config;
+        if (config.minimum_target_points < 1) {
+            throw std::invalid_argument("minimum_target_points must be positive");
+        }
+        for (double value : {config.target_cluster_gap, config.target_ambiguity_margin}) {
+            if (!std::isfinite(value) || value <= 0) {
+                throw std::invalid_argument("Target association thresholds must be positive");
+            }
+        }
+        auto gait = config.gait;
+        gait.distance = config.follow_distance;
+        gait_controller_.configure(gait);
+        if (config.gait_aware && (!std::isfinite(config.apf_clearance) ||
+            !std::isfinite(config.slowdown_clearance) ||
+            !std::isfinite(config.emergency_clearance) ||
+            config.emergency_clearance <= 0 ||
+            config.emergency_clearance >= config.slowdown_clearance ||
+            config.slowdown_clearance > config.apf_clearance)) {
+            throw std::invalid_argument("Invalid body-clearance APF distances");
+        }
+    }
     using VelocityCallback = std::function<void(const geometry_msgs::msg::Twist&)>;
     using DataBroadcastCallback = std::function<void()>;
+
+    void invalidateTarget(const char* reason = "lost") {
+        lost_latched_ = config_.gait_aware;
+        double x, y;
+        target_selection_ = state_.getTargetSelection(x, y);
+        state_.is_moving_enabled.store(false);
+        state_.setVelocity(0, 0, 0);
+        state_.setPoints({});
+        gait_controller_.reset();
+        kalman_.reset();
+        diagnostics_.tracking_valid = false;
+        diagnostics_.target_points = 0;
+        diagnostics_.before_limit = geometry_msgs::msg::Twist{};
+        diagnostics_.tracking_state = reason;
+        diagnostics_.controller_state = "blocked";
+        if (velocity_callback_) velocity_callback_(geometry_msgs::msg::Twist{});
+    }
     
     LidarTracker(SharedState& state) : state_(state) {
         // 计算机器人在窗口中的像素坐标
@@ -85,12 +143,25 @@ public:
      * @brief 处理激光扫描数据
      */
     void processScan(const sensor_msgs::msg::LaserScan::SharedPtr scan_msg) {
+        diagnostics_ = Diagnostics{};
         if (!state_.active.load()) {
+            invalidateTarget("inactive");
             return;
         }
         
         double target_x, target_y;
-        state_.getTarget(target_x, target_y);
+        const auto selection = state_.getTargetSelection(target_x, target_y);
+        if (selection != target_selection_) {
+            target_selection_ = selection;
+            lost_latched_ = false;
+            gait_controller_.reset();
+            kalman_.reset();
+            selected_point_budget_ = 0;
+        }
+        if (config_.gait_aware && (selection == 0 || lost_latched_)) {
+            invalidateTarget(selection == 0 ? "unselected" : "lost");
+            return;
+        }
         
         cv::Mat image;
         if (enable_opencv_) {
@@ -98,19 +169,28 @@ public:
             drawBackground(image, target_x, target_y);
         }
         
-        if (scan_msg->ranges.empty()) {
+        if (scan_msg->ranges.empty() || !std::isfinite(scan_msg->angle_min) ||
+            !std::isfinite(scan_msg->angle_increment) || scan_msg->angle_increment <= 0 ||
+            !std::isfinite(scan_msg->range_min) || !std::isfinite(scan_msg->range_max) ||
+            scan_msg->range_min < 0 || scan_msg->range_max <= scan_msg->range_min) {
+            invalidateTarget("invalid_scan");
             return;
         }
+        const double stamp = scan_msg->header.stamp.sec + scan_msg->header.stamp.nanosec*1e-9;
+        scan_dt_ = stamp > previous_stamp_ && previous_stamp_ > 0 ?
+            std::min(.2, stamp-previous_stamp_) : .1;
+        previous_stamp_ = stamp;
         
         // 处理扫描点
         double centroid_x = 0.0, centroid_y = 0.0;
         int points_in_target_count = 0;
+        std::vector<std::pair<double, double>> target_candidates;
         
         double target_vec_x = target_x;
         double target_vec_y = target_y;
         double target_vec_len = std::sqrt(target_vec_x * target_vec_x + target_vec_y * target_vec_y);
-        double left_y_min = -config_.corridor_width / 2;
-        double right_y_min = config_.corridor_width / 2;
+        double left_y_min = config_.corridor_width / 2;
+        double right_y_min = -config_.corridor_width / 2;
         
         // 势场法：排斥力累积和最近障碍距离
         double repulse_x = 0.0, repulse_y = 0.0;
@@ -150,12 +230,25 @@ public:
             bool in_robot_frame = (point_x > -config_.frame_back && point_x < config_.frame_front &&
                                    point_y > -config_.frame_right && point_y < config_.frame_left);
             
-            if (!in_robot_frame && dist_to_robot < min_obstacle_dist) {
-                min_obstacle_dist = dist_to_robot;
+            const double dx = point_x - std::clamp(point_x, -config_.frame_back, config_.frame_front);
+            const double dy = point_y - std::clamp(point_y, -config_.frame_right, config_.frame_left);
+            const double clearance = std::hypot(dx, dy);
+            const double obstacle_distance = config_.gait_aware ? clearance : dist_to_robot;
+            if (!in_robot_frame && obstacle_distance < min_obstacle_dist) {
+                min_obstacle_dist = obstacle_distance;
             }
+
+            const bool target_point = std::hypot(point_x-target_x, point_y-target_y) < TARGET_RADIUS;
             
             // 势场法：计算排斥力（排除机器人框架区域，只考虑前方和侧方障碍）
-            if (!in_robot_frame && dist_to_robot < APF_INFLUENCE_DIST && point_x > -0.1) {
+            if (config_.gait_aware && !in_robot_frame && !target_point &&
+                clearance > 1e-6 && clearance < config_.apf_clearance) {
+                const double force = APF_REPULSE_GAIN *
+                    (1.0/clearance - 1.0/config_.apf_clearance)/(clearance*clearance);
+                repulse_x -= force * dx/clearance;
+                repulse_y -= force * dy/clearance;
+            } else if (!config_.gait_aware && !in_robot_frame &&
+                       dist_to_robot < APF_INFLUENCE_DIST && point_x > -0.1) {
                 double force = APF_REPULSE_GAIN * (1.0 / dist_to_robot - 1.0 / APF_INFLUENCE_DIST) 
                                / (dist_to_robot * dist_to_robot);
                 repulse_x -= force * point_x / dist_to_robot;
@@ -171,6 +264,7 @@ public:
             double dist_to_target_center = std::sqrt(pow(point_x - target_x, 2) + pow(point_y - target_y, 2));
             
             if (dist_to_target_center < TARGET_RADIUS) {
+                target_candidates.emplace_back(point_x, point_y);
                 centroid_x += point_x;
                 centroid_y += point_y;
                 points_in_target_count++;
@@ -190,9 +284,9 @@ public:
                         }
                     }
                     
-                    if (proj_y > 0 && proj_y > left_y_min) {
+                    if (proj_y > 0 && proj_y < left_y_min) {
                         left_y_min = proj_y;
-                    } else if (proj_y <= 0 && proj_y < right_y_min) {
+                    } else if (proj_y <= 0 && proj_y > right_y_min) {
                         right_y_min = proj_y;
                     }
                 }
@@ -209,21 +303,90 @@ public:
         // 更新点云缓存
         state_.setPoints(std::move(points));
         
+        if (config_.gait_aware) {
+            // Segment only the selected window; never average unrelated objects.
+            double best = std::numeric_limits<double>::infinity();
+            double second = best;
+            size_t best_begin = 0, best_end = 0;
+            centroid_x = centroid_y = 0;
+            points_in_target_count = 0;
+            for (size_t begin = 0; begin < target_candidates.size();) {
+                size_t end = begin + 1;
+                double sx = target_candidates[begin].first;
+                double sy = target_candidates[begin].second;
+                while (end < target_candidates.size() && std::hypot(
+                    target_candidates[end].first-target_candidates[end-1].first,
+                    target_candidates[end].second-target_candidates[end-1].second) <=
+                    config_.target_cluster_gap) {
+                    sx += target_candidates[end].first;
+                    sy += target_candidates[end].second;
+                    ++end;
+                }
+                const int count = static_cast<int>(end-begin);
+                if (count >= config_.minimum_target_points) {
+                    const double score = std::hypot(sx/count-target_x, sy/count-target_y);
+                    if (score < best) {
+                        second = best;
+                        best = score;
+                        centroid_x = sx;
+                        centroid_y = sy;
+                        points_in_target_count = count;
+                        best_begin = begin;
+                        best_end = end;
+                    } else {
+                        second = std::min(second, score);
+                    }
+                }
+                begin = end;
+            }
+            if (std::isfinite(second) && second-best < config_.target_ambiguity_margin) {
+                invalidateTarget("ambiguous_target");
+                return;
+            }
+            if (selected_point_budget_ > 0 && points_in_target_count > selected_point_budget_) {
+                std::vector<std::pair<double, double>> selected(
+                    target_candidates.begin()+best_begin, target_candidates.begin()+best_end);
+                std::sort(selected.begin(), selected.end(), [=](const auto& a, const auto& b) {
+                    return std::hypot(a.first-target_x, a.second-target_y) <
+                           std::hypot(b.first-target_x, b.second-target_y);
+                });
+                centroid_x = centroid_y = 0;
+                points_in_target_count = selected_point_budget_;
+                for (int i = 0; i < points_in_target_count; ++i) {
+                    centroid_x += selected[i].first;
+                    centroid_y += selected[i].second;
+                }
+            }
+            if (selected_point_budget_ == 0 && points_in_target_count > 0) {
+                selected_point_budget_ = points_in_target_count;
+            }
+        }
+
         // 更新目标位置为质心（可选卡尔曼滤波平滑）
-        if (points_in_target_count > 0) {
+        if (points_in_target_count >= config_.minimum_target_points) {
             double raw_x = centroid_x / points_in_target_count;
             double raw_y = centroid_y / points_in_target_count;
             
             if (enable_kalman_) {
                 double filtered_x, filtered_y;
                 kalman_.update(raw_x, raw_y, filtered_x, filtered_y);
-                state_.setTarget(filtered_x, filtered_y);
+                state_.updateTrackedTarget(filtered_x, filtered_y);
             } else {
-                state_.setTarget(raw_x, raw_y);
+                state_.updateTrackedTarget(raw_x, raw_y);
             }
         }
         
         // 计算速度
+        state_.getTarget(diagnostics_.target_x, diagnostics_.target_y);
+        diagnostics_.target_points = points_in_target_count;
+        diagnostics_.repulse_x = repulse_x;
+        diagnostics_.repulse_y = repulse_y;
+        diagnostics_.tracking_valid = points_in_target_count >= config_.minimum_target_points;
+        diagnostics_.tracking_state = diagnostics_.tracking_valid ? "tracking" : "lost";
+        if (config_.gait_aware && !diagnostics_.tracking_valid) {
+            invalidateTarget();
+            return;
+        }
         geometry_msgs::msg::Twist cmd_vel_msg;
         int mode = state_.control_mode.load();
         
@@ -234,12 +397,17 @@ public:
             cmd_vel_msg.linear.y = vy;
             cmd_vel_msg.angular.z = wz;
         }
-        else if (mode == MODE_FOLLOW && points_in_target_count > 0) {
+        else if (mode == MODE_FOLLOW && diagnostics_.tracking_valid) {
+            if (config_.gait_aware && !state_.is_moving_enabled.load()) {
+                gait_controller_.reset();
+            } else {
             state_.getTarget(target_x, target_y);
             calculateFollowVelocity(cmd_vel_msg, target_x, target_y, 
                                     left_y_min, right_y_min,
                                     repulse_x, repulse_y, min_obstacle_dist);
+            }
         }
+        diagnostics_.controller_state = config_.gait_aware ? gait_controller_.state() : "legacy";
         
         // 缓存速度
         state_.setVelocity(cmd_vel_msg.linear.x, cmd_vel_msg.linear.y, cmd_vel_msg.angular.z);
@@ -266,6 +434,13 @@ public:
 private:
     SharedState& state_;
     Config config_;
+    GaitFollowController gait_controller_;
+    std::uint64_t target_selection_ = 0;
+    bool lost_latched_ = false;
+    int selected_point_budget_ = 0;
+    double previous_stamp_ = 0;
+    double scan_dt_ = .1;
+    Diagnostics diagnostics_;
     cv::Point robot_center_pixel_;
     bool enable_opencv_ = false;
     bool enable_kalman_ = false;
@@ -317,6 +492,16 @@ private:
     void calculateFollowVelocity(geometry_msgs::msg::Twist& cmd, double target_x, double target_y,
                                   double left_y_min, double right_y_min,
                                   double repulse_x, double repulse_y, double min_obstacle_dist) {
+        if (config_.gait_aware) {
+            diagnostics_.corridor = (left_y_min + right_y_min) / 2.0;
+            const double steering = std::atan2(diagnostics_.corridor + repulse_y,
+                                               std::max(.5, std::hypot(target_x, target_y)));
+            const double budget = std::clamp((min_obstacle_dist-config_.emergency_clearance) /
+                (config_.slowdown_clearance-config_.emergency_clearance), 0.0, 1.0);
+            cmd = gait_controller_.step(target_x, target_y, steering, budget, scan_dt_);
+            diagnostics_.before_limit = cmd;
+            return;
+        }
         // 紧急停止检查
         if (min_obstacle_dist < APF_EMERGENCY_DIST) {
             cmd.linear.x = 0.0;
@@ -338,6 +523,7 @@ private:
                 cmd.linear.x = (cmd.linear.x > 0) ? min_speed : -min_speed;
             }
         }
+
         
         // 旋转运动控制（带死区）
         double angle_error = atan2(target_y, target_x);
@@ -348,13 +534,15 @@ private:
         }
         
         // 横向运动控制（带死区）
-        double lateral_error = -(left_y_min + right_y_min);
+        double lateral_error = (left_y_min + right_y_min) / 2.0;
         if (std::abs(lateral_error) > 1.0) lateral_error = 0.0;
         if (std::abs(lateral_error) < 0.03) {
-            cmd.linear.y = 0.0;
+            lateral_error = 0.0;
         } else {
-            cmd.linear.y = lateral_error * LINEAR_Y_SCALE_FACTOR;
+            lateral_error *= LINEAR_Y_SCALE_FACTOR;
         }
+        diagnostics_.corridor = lateral_error;
+        cmd.linear.y = lateral_error;
         
         // 融合势场排斥力
         cmd.linear.x += repulse_x;
@@ -368,6 +556,7 @@ private:
             cmd.linear.x *= slowdown_factor;
         }
         
+        diagnostics_.before_limit = cmd;
         // 限制速度
         cmd.linear.x = std::clamp(cmd.linear.x, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
         cmd.linear.y = std::clamp(cmd.linear.y, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);

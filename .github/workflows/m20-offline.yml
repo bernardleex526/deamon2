@@ -12,13 +12,15 @@ jobs:
       matrix:
         distro: [foxy, humble]
     container: ros:${{ matrix.distro }}-ros-base
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
     steps:
       - uses: actions/checkout@v4
       - name: Install build and runtime dependencies
         shell: bash
         run: |
           apt-get update
-          apt-get install -y libopencv-dev python3-colcon-common-extensions \
+          apt-get install -y libopencv-dev python3-colcon-common-extensions python3-numpy \
             ros-${ROS_DISTRO}-ament-cmake-python ros-${ROS_DISTRO}-ament-cmake-gtest \
             ros-${ROS_DISTRO}-ament-lint-auto ros-${ROS_DISTRO}-ament-lint-common \
             ros-${ROS_DISTRO}-pointcloud-to-laserscan
@@ -28,7 +30,7 @@ jobs:
           source /opt/ros/${ROS_DISTRO}/setup.bash
           colcon build --packages-select jie_deamon --cmake-args -DBUILD_TESTING=ON
           source install/setup.bash
-          colcon test --packages-select jie_deamon --ctest-args -R test_m20_tracker --output-on-failure
+          colcon test --packages-select jie_deamon --return-code-on-test-failure --ctest-args -L m20_functional --output-on-failure
           colcon test-result --verbose
           ros2 launch jie_deamon m20.launch.py --show-args
-          python3 test/ros_m20_smoke.py
+          ros2 run jie_deamon m20_select_target.py --help

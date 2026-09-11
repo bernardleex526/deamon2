@@ -5,6 +5,7 @@ import struct
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
+from rclpy.time import Time
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import String
 
@@ -14,6 +15,7 @@ class MockInputs(Node):
         super().__init__('m20_mock_inputs')
         self.declare_parameter('obstacle', False)
         self.declare_parameter('target', True)
+        self.declare_parameter('stamp_delay', 0.0)
         self.cloud = self.create_publisher(PointCloud2, '/m20/mock_points', qos_profile_sensor_data)
         self.status = self.create_publisher(String, '/m20/mock_basic_status', 1)
         self.create_timer(0.1, self.tick)
@@ -26,7 +28,8 @@ class MockInputs(Node):
         if self.get_parameter('obstacle').value:
             points.append((0.6, 0.0, 0.2))
         msg = PointCloud2()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = Time(nanoseconds=self.get_clock().now().nanoseconds -
+            int(self.get_parameter('stamp_delay').value * 1e9)).to_msg()
         msg.header.frame_id = 'lidar_link'
         msg.height, msg.width = 1, len(points)
         msg.fields = [PointField(name=n, offset=i * 4, datatype=PointField.FLOAT32, count=1)
@@ -36,7 +39,7 @@ class MockInputs(Node):
         msg.data = b''.join(struct.pack('<fff', *point) for point in points)
         self.cloud.publish(msg)
         status = String()
-        status.data = json.dumps(dict(BasicStatus=dict(MotionState=17, Gait=12290,
+        status.data = json.dumps(dict(BasicStatus=dict(MotionState=17, Gait=4097,
                                   Charge=0, HES=0, ControlUsageMode=1, Sleep=0, Direction=0)))
         self.status.publish(status)
 
