@@ -3,6 +3,7 @@ __pycache__/
 build/
 install/
 log/
+bin/
 *.bag
 *.db3
 *.mcap
