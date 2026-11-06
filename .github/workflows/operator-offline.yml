@@ -41,4 +41,4 @@ jobs:
           cd src/jie_deamon_operator
           python3 test/ros_m20_smoke.py
           python3 test/ros_operator_smoke.py
-          python3 -m m20_adapter.follow_sim --report /tmp/m20_follow_sim.json
+          ROS_LOCALHOST_ONLY=1 python3 -m m20_adapter.follow_sim --report /tmp/m20_follow_sim.json
