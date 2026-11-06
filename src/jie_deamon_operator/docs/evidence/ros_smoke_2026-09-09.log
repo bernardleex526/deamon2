@@ -1,0 +1,27 @@
+[INFO] [launch]: All log files can be found below /home/bernardx526/.ros/log/2026-09-09-16-49-55-516839-DESKTOP-40C82JN-572
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [pointcloud_to_laserscan_node-1]: process started with pid [584]
+[INFO] [robot_nexus-2]: process started with pid [586]
+[INFO] [m20_bridge-3]: process started with pid [588]
+[robot_nexus-2] [INFO] [1788943796.037172022] [robot_nexus]: 节点启动 - 跟随: 开启, OpenCV: 关闭, Web: 关闭, 卡尔曼: 关闭
+[pointcloud_to_laserscan_node-1] [INFO] [1788943796.038966773] [m20_cloud_to_scan]: Got a subscriber to laserscan, starting pointcloud subscriber
+[robot_nexus-2] [INFO] [1788943796.039976085] [robot_nexus]: 机器人中枢节点 'robot_nexus' 已启动
+[m20_bridge-3] [INFO] [1788943796.159639025] [m20_bridge]: m20_bridge started: dry_run=True profile=auto y_axis=False gait_min_policy=zero
+[m20_bridge-3] [WARN] [1788943796.202849455] [m20_bridge]: control command changed: None -> 25 (usage mode 1)
+[m20_bridge-3] [WARN] [1788943796.203017925] [m20_bridge]: gate reason: None -> 'not armed' (armed=False, since_command=inf)
+[m20_bridge-3] [WARN] [1788943796.451241877] [m20_bridge]: gate reason: 'not armed' -> 'no fresh command stream' (armed=False, since_command=inf)
+[m20_bridge-3] [WARN] [1788943797.244304213] [m20_bridge]: gate reason: 'no fresh command stream' -> 'armed' (armed=True, since_command=0.017)
+[m20_bridge-3] [WARN] [1788943797.542120465] [m20_bridge]: gate reason: 'armed' -> 'invalid scan or obstacle' (armed=False, since_command=inf)
+[m20_bridge-3] [WARN] [1788943797.839644373] [m20_bridge]: gate reason: 'invalid scan or obstacle' -> 'armed' (armed=True, since_command=0.046)
+[m20_bridge-3] [WARN] [1788943798.236339354] [m20_bridge]: gate reason: 'armed' -> 'command stale' (armed=False, since_command=inf)
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [m20_bridge-3]: sending signal 'SIGINT' to process[m20_bridge-3]
+[INFO] [robot_nexus-2]: sending signal 'SIGINT' to process[robot_nexus-2]
+[INFO] [pointcloud_to_laserscan_node-1]: sending signal 'SIGINT' to process[pointcloud_to_laserscan_node-1]
+[pointcloud_to_laserscan_node-1] [INFO] [1788943798.236889534] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[robot_nexus-2] [INFO] [1788943798.236906947] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[pointcloud_to_laserscan_node-1] [INFO] [1788943798.238242328] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+[ERROR] [robot_nexus-2]: process has died [pid 586, exit code -2, cmd '/home/bernardx526/m20_ws/install/jie_deamon/lib/jie_deamon/robot_nexus --ros-args -r __node:=robot_nexus --params-file /home/bernardx526/m20_ws/install/jie_deamon/share/jie_deamon/config/m20.yaml --params-file /tmp/launch_params_7j4w1v2r -r /scan:=/m20/scan -r /cmd_vel:=/m20/cmd_vel_raw -r /d1_cmd:=/m20/unsupported_d1_actions'].
+[INFO] [pointcloud_to_laserscan_node-1]: process has finished cleanly [pid 584]
+[INFO] [m20_bridge-3]: process has finished cleanly [pid 588]
+PASS: default zero, forward tracking, target loss, obstacle latch, input loss

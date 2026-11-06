@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+build/
+install/
+log/
+*.bag
+*.db3
+*.mcap
+*.pcd
+*.ply
+maps/
+
+.operator-token
+*.token
+.pytest_cache/

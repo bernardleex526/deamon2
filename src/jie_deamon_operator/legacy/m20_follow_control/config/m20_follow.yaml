@@ -1,0 +1,72 @@
+m20_follow_node:
+  ros__parameters:
+    enabled: false
+    input_mode: "ros"
+    input_topic: "/LIDAR/POINTS"
+    socket_path: "/tmp/m20_follow_lidar.sock"
+    output_topic: "/m20_follow/cmd_vel"
+    target_topic: "/follow/target"
+    enable_topic: "/follow/enable"
+    status_topic: "/follow/status"
+
+    cloud.min_height: -0.30
+    cloud.max_height: 0.60
+    cloud.min_range: 0.30
+    cloud.max_range: 8.0
+    cloud.yaw_offset: 0.0
+    cloud.invert_x: false
+    cloud.invert_y: false
+    cloud.timeout_ms: 350
+
+    body.min_x: -0.45
+    body.max_x: 0.45
+    body.min_y: -0.25
+    body.max_y: 0.25
+
+    follow.distance: 1.20
+    follow.target_radius: 0.40
+    follow.min_target_points: 3
+    follow.target_smoothing: 0.35
+
+    obstacle.influence_distance: 1.00
+    obstacle.slowdown_distance: 1.00
+    obstacle.emergency_distance: 0.70
+    obstacle.repulsion_gain: 0.05
+
+    control.output_hz: 20.0
+    control.linear_gain: 0.50
+    control.lateral_gain: 0.40
+    control.yaw_gain: 0.80
+    control.linear_deadband: 0.05
+    control.lateral_deadband: 0.05
+    control.yaw_deadband: 0.08
+    control.max_linear_x: 0.25
+    control.max_linear_y: 0.15
+    control.max_yaw_rate: 0.30
+    control.max_linear_acceleration: 0.30
+    control.max_yaw_acceleration: 0.50
+
+m20_udp_bridge:
+  ros__parameters:
+    server_ip: "10.21.31.103"
+    server_port: 30000
+    cmd_vel_topic: "/m20_follow/cmd_vel"
+    action_topic: "/m20/action"
+    arm_topic: "/m20/arm"
+    status_topic: "/m20/bridge_status"
+
+    motion_output_enabled: false
+    arm_on_start: false
+    heartbeat_hz: 5.0
+    command_hz: 20.0
+    cmd_timeout_ms: 250
+    status_timeout_ms: 1200
+    action_retry_ms: 500
+    action_timeout_ms: 15000
+
+    axis.safe_max_x: 0.25
+    axis.safe_max_y: 0.15
+    axis.safe_max_yaw: 0.30
+    axis.full_scale_x: 1.50
+    axis.full_scale_y: 0.60
+    axis.full_scale_yaw: 1.00

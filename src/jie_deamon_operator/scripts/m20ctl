@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Run on GOS. One-time SSH key/sudo setup on NOS is documented in OPERATOR.md.
+set -eo pipefail
+command_name=${1:-help}
+case "$command_name" in
+  preview|live|check|status|stop|token) ;;
+  *) echo 'Usage: bash scripts/m20ctl {check|preview|live --commissioned|status|stop|token}'; exit 0 ;;
+esac
+workspace=${M20_WS:-/home/user/m20_ws}
+nos_host=${M20_NOS_HOST:-user@10.21.31.106}
+if [[ "$command_name" == live && "${2:-}" != --commissioned ]]; then
+  echo 'Live requires --commissioned after physical acceptance and factory control handover.' >&2
+  exit 2
+fi
+if [[ $EUID -ne 0 ]]; then
+  exec sudo env M20_WS="$workspace" M20_NOS_HOST="$nos_host" bash "$0" "$@"
+fi
+export M20_OPERATOR_TOKEN_FILE="$workspace/.operator-token"
+if [[ "$command_name" == status || "$command_name" == stop ]]; then
+  python3 - "$command_name" "$M20_OPERATOR_TOKEN_FILE" <<'PY'
+import json, secrets, sys, urllib.request
+from pathlib import Path
+op, path = sys.argv[1:]
+headers = {'Authorization': 'Bearer ' + Path(path).read_text().strip(),
+           'Content-Type': 'application/json'}
+body = None if op == 'status' else json.dumps(dict(
+    client='cli-' + secrets.token_hex(8), seq=1, op='stop')).encode()
+request = urllib.request.Request('http://127.0.0.1:8080/api/' +
+                                 ('status' if op == 'status' else 'command'),
+                                 data=body, headers=headers)
+with urllib.request.urlopen(request, timeout=3) as response:
+    print(json.dumps(json.load(response), ensure_ascii=False, indent=2))
+PY
+  exit $?
+fi
+if [[ "$command_name" == token ]]; then
+  cat "$M20_OPERATOR_TOKEN_FILE"
+  exit 0
+fi
+# Source vendor scripts before nounset; these scripts may read unset variables.
+export ROS_DISTRO=foxy
+source /opt/robot/scripts/setup_ros2.sh
+source "$workspace/install/setup.bash"
+export ROS_DOMAIN_ID=0 ROS_LOCALHOST_ONLY=0 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+set -u
+ros2 pkg prefix jie_deamon
+ssh_command=(ssh -o BatchMode=yes -o ConnectTimeout=5 "$nos_host")
+if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
+  ssh_command=(runuser -u "$SUDO_USER" -- "${ssh_command[@]}")
+fi
+if [[ "$command_name" == preview || "$command_name" == live ]]; then
+  exec 9>/run/m20-operator.lock
+  flock -n 9 || { echo 'An m20ctl launch is already running.' >&2; exit 1; }
+  nodes=$(timeout 8 ros2 node list)
+  if printf '%s\n' "$nodes" | grep -Eq '^/(robot_nexus|m20_bridge|m20_udp_bridge|m20_follow_node)$'; then
+    echo 'An existing follow/controller instance was found; inspect and stop it first.' >&2
+    exit 1
+  fi
+  "${ssh_command[@]}" 'systemctl is-active --quiet multicast-relay.service || sudo -n systemctl start multicast-relay.service'
+else
+  "${ssh_command[@]}" 'systemctl is-active multicast-relay.service'
+fi
+ros2 run jie_deamon m20_cloud_probe.py --seconds 12 --cloud-only
+if [[ "$command_name" == check ]]; then
+  echo 'Fresh lidar confirmed. This does not verify factory task/control ownership.'
+  exit 0
+fi
+umask 077
+if [[ ! -f "$M20_OPERATOR_TOKEN_FILE" ]]; then
+  python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > "$M20_OPERATOR_TOKEN_FILE"
+fi
+chmod 600 "$M20_OPERATOR_TOKEN_FILE"
+echo 'Phone: http://<GOS reachable IP>:8080 ; use another terminal: bash scripts/m20ctl token'
+echo 'The control lease starts only when you press Start. Ctrl+C exits this launch.'
+if [[ "$command_name" == live ]]; then
+  exec ros2 launch jie_deamon m20.launch.py dry_run:=false commissioned:=true enable_web:=true
+else
+  exec ros2 launch jie_deamon m20.launch.py dry_run:=true commissioned:=false enable_web:=true
+fi

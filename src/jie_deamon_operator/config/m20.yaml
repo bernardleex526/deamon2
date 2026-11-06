@@ -1,0 +1,109 @@
+robot_nexus:
+  ros__parameters:
+    active: true
+    enable_web: false
+    enable_android: false
+    enable_actions: false
+    enable_opencv: false
+    # M20 fused cloud is already in body coordinates (dds_frame_id is lidar_link
+    # but the driver applies the static extrinsic), so no extra yaw rotation.
+    scan_yaw: 0.0
+    follow_distance: 1.2
+    corridor_width: 0.8
+    # Initial body dimensions, NOT a validated swept leg footprint.
+    frame_front: 0.41
+    frame_back: 0.41
+    frame_left: 0.253
+    frame_right: 0.253
+    direct_timeout: 0.3
+    # Lateral corridor centering is OFF: the D1 term produced +0.5 m/s in the
+    # 2026-09-08 dry run because a single observed wall shifted the corridor
+    # centre. Enable only after the acceptance checklist proves sign/magnitude.
+    enable_lateral: false
+    lateral_gain: 0.5
+    lateral_max: 0.3
+    lateral_deadband: 0.05
+    lateral_sign: 1.0
+    # 0.0 keeps the true requested speed; the bridge owns the gait-minimum policy.
+    min_forward_speed: 0.0
+
+m20_cloud_to_scan:
+  ros__parameters:
+    # Vendor merged points are already body coordinates despite lidar_link label.
+    # Empty target_frame prevents a second extrinsic transform.
+    target_frame: ''
+    min_height: -0.1
+    max_height: 0.5
+    # Front sector only (see docs/LIDAR_CHOICE_ANALYSIS.md). Inside this sector
+    # pointcloud_to_laserscan keeps the nearest return per bin, and the front
+    # lidar is always nearer than the rear lidar for the same object, so this is
+    # geometrically equivalent to "front lidar only" without touching the
+    # factory send_separately setting.
+    angle_min: -1.7453292519943295
+    angle_max: 1.7453292519943295
+    angle_increment: 0.008726646259971648
+    scan_time: 0.1
+    range_min: 0.1
+    range_max: 12.0
+    use_inf: true
+    concurrency_level: 1
+
+m20_bridge:
+  ros__parameters:
+    dry_run: true
+    commissioned: false
+    aos_host: '10.21.31.103'
+    aos_port: 30000
+    # auto: Cmd=25 (SI, m/s) in navigation mode, Cmd=21 (normalized) in regular
+    # mode. This removes the old hard requirement ControlUsageMode == 1.
+    control_profile: 'auto'
+    allow_auxiliary_mode: false
+    scan_frame: 'lidar_link'
+    max_vx: 0.3
+    max_vy: 0.3
+    max_wz: 0.6
+    axis_enable_x: true
+    # The algorithm's lateral term is disabled at the tracker
+    # (robot_nexus.enable_lateral=false), so this axis only carries deliberate
+    # operator teleoperation. Set false for a belt-and-braces gate.
+    axis_enable_y: true
+    axis_enable_yaw: true
+    # Algorithm output may not drive backwards by default: reverse is blind
+    # behind the +-100 deg guard sector. An operator teleoperation client may.
+    allow_reverse: false
+    allow_reverse_operator: true
+    # zero: a request below the gait minimum is dropped (fail-closed).
+    # snap: a non-zero request is raised to the gait minimum (smooth but must be
+    #       accepted on the robot first). See docs/M20_BLOCKERS_CLEARED.md.
+    gait_min_policy: 'zero'
+    min_request: 0.02
+    # Full scale for Cmd=21 normalization; verify against the robot.
+    axis_max_x: 2.0
+    axis_max_y: 1.0
+    axis_max_yaw: 2.0
+    stop_front: 0.7
+    stop_back: 0.7
+    stop_half_width: 0.4
+    stop_hits_required: 1
+    # Body box (0.82 x 0.506 m) plus per-side margins. The rear/flank margins
+    # cover the leg sweep that produced the persistent 0.45 m rear-left return;
+    # the front margin stays small so the forward stop zone remains wide.
+    self_front: 0.41
+    self_back: 0.41
+    self_left: 0.253
+    self_right: 0.253
+    self_margin_front: 0.05
+    self_margin_back: 0.14
+    self_margin_left: 0.07
+    self_margin_right: 0.07
+    scan_min_range: 0.05
+    # Guard sector: only the front +-100 deg is inspected. A dead front lidar
+    # then yields too few sector bins and the gate fails closed.
+    guard_sector_min: -1.7453292519943295
+    guard_sector_max: 1.7453292519943295
+    min_sector_bins: 20
+    # Live start requires a fresh, all-pass preflight report on this host.
+    require_preflight: true
+    preflight_path: '/tmp/m20_preflight.json'
+    preflight_max_age: 600.0
+    control_hz: 20.0

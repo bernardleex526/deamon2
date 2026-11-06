@@ -1,0 +1,194 @@
+[
+  {
+    "name": "01_approach_2.0m",
+    "failures": [],
+    "raw": [
+      0.3999646606456233,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.3,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "02_hold_at_follow_distance",
+    "failures": [],
+    "raw": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "03_retreat_blocked",
+    "failures": [],
+    "raw": [
+      -0.1200124941120686,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "04_turn_left_large",
+    "failures": [],
+    "raw": [
+      -0.07845210643492528,
+      0.0,
+      0.7742912993280415
+    ],
+    "guarded": [
+      0.0,
+      0.0,
+      0.6
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "05_turn_right_large",
+    "failures": [],
+    "raw": [
+      -0.08189455598254153,
+      0.0,
+      -0.7830180094447711
+    ],
+    "guarded": [
+      0.0,
+      0.0,
+      -0.6
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "06_small_angle_below_gait_min",
+    "failures": [],
+    "raw": [
+      0.1006533393424478,
+      0.0,
+      0.24112189270308523
+    ],
+    "guarded": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "07_target_lost",
+    "failures": [],
+    "raw": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "08_self_returns_do_not_block",
+    "failures": [],
+    "raw": [
+      0.3999646606456233,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.3,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "09_front_obstacle_disarms",
+    "failures": [],
+    "raw": [
+      0.39996258186007194,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "reason": "invalid scan or obstacle",
+    "command_kind": 25
+  },
+  {
+    "name": "10_rear_obstacle_outside_sector",
+    "failures": [],
+    "raw": [
+      0.3999646606456233,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.3,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  },
+  {
+    "name": "11_regular_mode_cmd21",
+    "failures": [],
+    "raw": [
+      0.3999646606456233,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.3,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 21
+  },
+  {
+    "name": "12_navigation_mode_cmd25",
+    "failures": [],
+    "raw": [
+      0.3999646606456233,
+      0.0,
+      0.0
+    ],
+    "guarded": [
+      0.3,
+      0.0,
+      0.0
+    ],
+    "reason": "armed",
+    "command_kind": 25
+  }
+]

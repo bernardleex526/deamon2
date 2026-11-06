@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>雷达跟随可视化</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- 顶部导航栏 -->
+        <nav class="nav-bar">
+            <div class="nav-item active" data-tab="direct">
+                <img src="icon/ico_1.png" alt="直接控制">
+            </div>
+            <div class="nav-item" data-tab="follow">
+                <img src="icon/ico_2.png" alt="雷达跟随">
+            </div>
+            <div class="nav-item" data-tab="nav">
+                <img src="icon/ico_3.png" alt="地图导航">
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">连接中...</span>
+            </div>
+        </nav>
+
+        <!-- 直接控制面板 -->
+        <div id="panel-direct" class="tab-content active">
+            <div class="direct-control-container">
+                <!-- 旋转控制条 -->
+                <div class="slider-container">
+                    <div class="slider-track"></div>
+                    <div class="slider-knob" id="rotationKnob"></div>
+                    <div class="slider-label left">↺ 左转</div>
+                    <div class="slider-label right">右转 ↻</div>
+                </div>
+
+                <!-- 虚拟摇杆 -->
+                <div class="joystick-area">
+                    <div class="joystick-base" id="joystickBase">
+                        <div class="joystick-stick" id="joystickStick"></div>
+                        <div class="joystick-cross"></div>
+                    </div>
+                    <div class="joystick-hint">平移运动控制</div>
+                </div>
+
+                <!-- 速度模式切换 -->
+                <div class="speed-mode-switch">
+                    <span class="mode-label low-label">低速</span>
+                    <label class="switch">
+                        <input type="checkbox" id="speedModeToggle">
+                        <span class="switch-slider"></span>
+                    </label>
+                    <span class="mode-label high-label">高速</span>
+                </div>
+
+                <!-- 动作按钮 -->
+                <div class="action-buttons-container">
+                    <button class="action-btn" id="btnLieDown">趴下</button>
+                    <button class="action-btn" id="btnStandUp">站起</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 导航面板 -->
+        <div id="panel-nav" class="tab-content" style="display: none;">
+            <div class="construction-container">
+                <div class="construction-icon">🚧</div>
+                <h2>正在施工</h2>
+                <p>敬请期待...</p>
+            </div>
+        </div>
+
+        <!-- 雷达跟随面板 -->
+        <main id="panel-follow" class="main-content tab-content" style="display: none;">
+            <div class="visualization-panel">
+                <canvas id="lidarCanvas"></canvas>
+            </div>
+
+            <aside class="control-panel">
+                <div class="status-card">
+                    <h3>🎯 目标状态</h3>
+                    <div class="status-row">
+                        <span class="label">位置 X</span>
+                        <span class="value" id="targetX">0.00 m</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="label">位置 Y</span>
+                        <span class="value" id="targetY">0.00 m</span>
+                    </div>
+                </div>
+
+                <div class="status-card speed-card">
+                    <h3>🚀 速度指令</h3>
+                    <div class="speed-canvas-container">
+                        <canvas id="speedCanvas" height="100"></canvas>
+                    </div>
+                </div>
+
+                <div class="control-card">
+                    <!-- <h3>⚙️ 控制</h3> -->
+                    <button class="control-btn" id="movingToggle">
+                        <span class="btn-icon">⏸️</span>
+                        <span class="btn-text">运动停止</span>
+                    </button>
+                </div>
+            </aside>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,94 @@
+{
+  "_meta": {
+    "generated": "2026-09-09",
+    "side_A": "D:\\repos\\dt_text\\*.txt （2026-09-09 钉钉 alidocs SSR 正文抽取，线上当前正文）",
+    "side_B": "D:\\repos\\deamon2-src\\deamon2-main\\docs\\vendor_text\\*.txt （2026-09-06 抓取快照，manifest.json SHA256 全部吻合）",
+    "side_C": "D:\\repos\\dt\\*.html （线上原始 HTML，用于回查判定）",
+    "normalization": "去CSS块 → 去零宽字符 → NFKC → 去全部空白；主判据 = 归一化后完全相等",
+    "summary": "19 篇中 15 篇归一化后完全一致（无漂移）；python / services 差异纯属 A 侧 HTML 实体未解码（抽取伪影）；development 与 updates 存在真实内容漂移。",
+    "drift_docs": ["development", "updates"],
+    "artifact_only_docs": ["python", "services"],
+    "identical_docs": [
+      "architecture", "compute", "dds", "estop", "external", "hardware", "lidar",
+      "lidar_external", "modes", "motion_basic", "motion_ros", "network",
+      "protocol", "time", "topics"
+    ]
+  },
+  "architecture": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "compute": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "dds": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "development": {
+    "drift": true,
+    "kinds": ["内容新增", "内容修改"],
+    "added": [
+      "新增小节 1.2.7 自定义灯语（Type=1101 Command=14）整节：含 JSON/XML 示例与 Led[] 参数表；原文「用户可通过该请求自定义机器人前后照明灯的灯效模式。」「注意：后灯不支持单独设置，前后灯需分别通过 Led 数组中的两个元素独立配置。」",
+      "新增小节 1.2.10 GPS时间同步设置（Type=1101 Command=16）整节；原文「用户可通过该请求开启GPS时间同步功能。开启后，机器人将以GPS卫星时间为标准，统一校准所有主机的系统时间。该功能默认关闭。」",
+      "新增小节 1.2.11 外部时间同步（Type=1101 Command=15）整节；原文「用户可通过该请求将外部时间设置为系统时间（同步给各个主机）。」",
+      "1.4.2 获取地图坐标系下的位置信息：响应新增字段 Confidence 与 Relocation，含 JSON/XML 示例与参数表；原文「Confidence 定位置信度 float 取值范围 0~1，数值越大表示定位可信度越高」「Relocation 重定位状态 int 默认状态=-1 运行状态（正在执行重定位）=0 空闲状态（无重定位任务）=1 重定位成功=2 重定位失败=3 取消重定位中=4」",
+      "目录新增「1.2.7 自定义灯语」，其后小节号顺延（自主充电 1.2.7→1.2.8、休眠模式设置 1.2.8→1.2.9，并新增 1.2.10 / 1.2.11）"
+    ],
+    "removed": [],
+    "changed": [
+      "文档版本号：快照「版本号：V1.2.1」→ 线上「版本号：V1.3.0」",
+      "休眠模式设置参数说明：快照「Sleep / 休眠模式启停 / bool / 进入休眠 = true / 唤醒（退出休眠）=false」→ 线上「Sleep / 休眠模式设置 / bool / 开启休眠 = true / 退出休眠 = false」",
+      "休眠模式设置 JSON/XML 示例取值：快照「\"Sleep\":false」「<Sleep>0</Sleep>」「<Auto>0</Auto>」→ 线上「\"Sleep\":true」「<Sleep>true</Sleep>」「<Auto>true</Auto>」",
+      "1.3.3 休眠状态查询 响应示例取值：快照「\"Sleep\":false」→ 线上「\"Sleep\":0」；快照「<Auto>0</Auto>」→ 线上「<Auto>true</Auto>」",
+      "1.3.3 参数表数据类型：快照「Sleep / 机器人休眠状态 / bool / 已休眠= true 未休眠=false」→ 线上「Sleep / 机器人休眠状态 / int / 已休眠= 1 未休眠= 0」",
+      "异常状态信息表：快照「0x8507 / 充电停障错误码」→ 线上「0x8507 / 充电停障错误」"
+    ]
+  },
+  "estop": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "external": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "hardware": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "lidar": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "lidar_external": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "modes": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "motion_basic": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "motion_ros": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "network": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "protocol": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "python": {
+    "drift": false,
+    "kinds": ["抽取伪影（A 侧 HTML 实体未解码）"],
+    "added": [],
+    "removed": [],
+    "changed": ["A 侧 4 处 &#x27; ↔ B 侧 '；对 A 侧做 html.unescape 后两文归一化完全相等，非内容漂移"]
+  },
+  "services": {
+    "drift": false,
+    "kinds": ["抽取伪影（A 侧 HTML 实体未解码）"],
+    "added": [],
+    "removed": [],
+    "changed": ["A 侧 10 处 &#x27; ↔ B 侧 '；对 A 侧做 html.unescape 后两文归一化完全相等，非内容漂移"]
+  },
+  "time": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "topics": { "drift": false, "kinds": ["抽取伪影", "格式差异"], "added": [], "removed": [], "changed": [] },
+  "updates": {
+    "drift": true,
+    "kinds": ["内容新增"],
+    "added": [
+      "山猫M20 表格新增「V1.2.0.1」整段更新条目（【新增】6 条 /【优化】6 条 /【修复】6 条，共 18 条）；首条原文「●新增阻尼模式，APP页面原“急停”按钮改为“阻尼趴下”，触发后更柔和的停止；手柄端红色按钮仍为软急停；」",
+      "山猫M20 Pro 表格新增「V1.2.0.1」整段更新条目（【新增】12 条 /【优化】10 条 /【修复】9 条，共 31 条）；含原文「●增加自定义灯语接口，支持对指示灯进行二次开发；」「●新增GPS/外部时间源授时接口，支持对主机进行时间同步；」「●新增重定位功能：支持APP手动触发与取消，重定位状态实时显示；」「●修复斜坡无法停障问题，支持20度斜坡下停止；」"
+    ],
+    "removed": [],
+    "changed": []
+  },
+  "_verification": {
+    "snapshot_integrity": "19 个快照 .txt 的 SHA256 与 manifest.json 全部吻合（0 处不符）",
+    "updates_exact_check": "把 A 侧两段 V1.2.0.1 整段删除后，与 B 侧归一化结果完全相等（canonA 5387 → 4144 = canonB 4144），证明 updates 的漂移仅此两段",
+    "development_html_groundtruth": {
+      "自定义灯语": { "A": 4, "B": 0, "HTML": 4 },
+      "GPS时间同步设置": { "A": 4, "B": 0, "HTML": 4 },
+      "外部时间同步": { "A": 3, "B": 0, "HTML": 3 },
+      "Confidence": { "A": 4, "B": 0, "HTML": 4 },
+      "Relocation": { "A": 4, "B": 0, "HTML": 4 },
+      "充电停障错误": { "A": 1, "B": 1, "HTML": 1 },
+      "充电停障错误码": { "A": 0, "B": 1, "HTML": 0 }
+    },
+    "b_side_extraction_artifacts": {
+      "xml_declaration_missing_in_B": { "needle": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "A": 30, "B": 25, "HTML": 30, "verdict": "B 侧抽取丢行，非内容漂移" },
+      "showing_colon_duplicated_in_B": { "needle": "显示：", "A": 1, "B": 2, "HTML": 1, "verdict": "B 侧重复，非内容漂移" }
+    },
+    "key_facts": "13 组关键事实在 A / B / HTML 三侧全部命中且一致（详见 DOC_DIFF_REPORT.md 第三节）"
+  }
+}

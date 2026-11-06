@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>M20 控制台</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101820;color:#e9f0f5;font:16px system-ui,sans-serif}
+main{max-width:850px;margin:auto;padding:20px}h1{font-size:26px;margin:8px 0}.card{background:#1c2b36;border-radius:14px;padding:18px;margin:14px 0}
+input,button{font:inherit;padding:13px;border:1px solid #537080;border-radius:9px}input{background:#13222c;color:white;width:100%}
+button{background:#2b5367;color:white;cursor:pointer;touch-action:none}button:disabled{opacity:.45;cursor:default}button:active{background:#4386a5}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}#stop{background:#a72838;min-height:60px;font-weight:bold;width:100%;font-size:20px}
+.muted{color:#b2c4d0;font-size:14px}#state{font-size:20px}#reason{overflow-wrap:anywhere;color:#ffd392}canvas{display:block;width:100%;background:#0c171f;border-radius:9px;touch-action:none}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.pad button{min-height:64px}#feedback{min-height:24px;color:#ffd392}label{display:block;margin:10px 0}pre{white-space:pre-wrap;font-size:13px}
+</style>
+<main>
+<h1>M20 控制台</h1><p class="muted">D1 跟随算法 · 二维雷达 · 单一控制来源</p>
+<div class="card"><label>控制口令<input id="token" type="password" autocomplete="off" placeholder="输入启动脚本生成的口令"></label>
+<button id="connect">连接状态</button><p class="muted">仅用于可信局域网；Android 手机也可直接使用此页面。</p></div>
+<div class="card"><div id="state">未连接</div><p id="reason">连接后显示机器人状态与拦截原因</p><div id="feedback" role="alert"></div>
+<button id="stop">停止控制 / 跟随</button><p class="muted">这是软件停车请求；需要硬急停时使用原厂控制器。</p></div>
+<div class="card"><canvas id="scan" width="700" height="440"></canvas>
+<p id="target">点击雷达图中机器人前方的目标。上方为前，左方为左。</p>
+<div class="row"><button id="direct" disabled>开始手动控制</button><button id="follow" disabled>开始跟随</button></div>
+<p class="muted">按住方向键运动，松开置零。切换模式前先停止。页面隐藏、断连或保护触发后需重新开始。</p>
+<p id="speeds" class="muted"></p><div class="pad">
+<button data-v="0,0,0.4" disabled>左转 ↶</button><button data-v="0.2,0,0" disabled>前进 ↑</button><button data-v="0,0,-0.4" disabled>右转 ↷</button>
+<button data-v="0,0.25,0" disabled>左移 ←</button><button id="zero" disabled>松开停车</button><button data-v="0,-0.25,0" disabled>右移 →</button>
+<span></span><button data-v="-0.2,0,0" disabled>后退 ↓</button><span></span></div></div>
+<div class="card"><b>姿态与动作</b><p>站立、趴下、步态切换：请使用原厂控制器。D1 动作尚未完成 M20 映射，接口会返回“不支持”，不会转发关节断电指令。</p>
+<details><summary>运行详情</summary><pre id="details"></pre></details></div>
+</main>
+<script>
+const $=id=>document.getElementById(id), random=new Uint32Array(4);crypto.getRandomValues(random);
+const client=Array.from(random).join('-');let seq=0,token='',connected=false,active=false,mode='',velocity=[0,0,0],target=null,busy=false,pending=false,points=[],lastGood=0;
+const headers=()=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
+async function command(op,extra={}){
+ const response=await fetch('/api/command',{method:'POST',headers:headers(),body:JSON.stringify({client,seq:++seq,op,...extra}),signal:AbortSignal.timeout(900)});
+ const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'请求失败');return data;
+}
+function localStop(){active=false;velocity=[0,0,0];document.querySelectorAll('[data-v],#zero').forEach(b=>b.disabled=true)}
+async function stop(){localStop();if(token)try{await command('stop')}catch(e){$('feedback').textContent='停车请求未确认，请检查机器人：'+e.message}}
+async function start(next){
+ if(pending||active||!connected)return;if(next==='follow'&&!target){$('feedback').textContent='请先选择目标';return}
+ pending=true;$('direct').disabled=$('follow').disabled=true;
+ try{await command('start',{mode:next,target});mode=next;active=true;velocity=[0,0,0];$('feedback').textContent='开始请求已接受';document.querySelectorAll('[data-v],#zero').forEach(b=>b.disabled=mode!=='direct'||(b.dataset.v&&b.dataset.v.split(',').every(v=>Number(v)===0)))}
+ catch(e){localStop();$('feedback').textContent=e.message}finally{pending=false}
+}
+$('direct').onclick=()=>start('direct');$('follow').onclick=()=>start('follow');$('stop').onclick=stop;
+$('connect').onclick=async()=>{await stop();token=$('token').value.trim();connected=false;await status()};
+document.querySelectorAll('[data-v]').forEach(b=>{
+ b.onpointerdown=e=>{if(!active||mode!=='direct')return;e.preventDefault();b.setPointerCapture(e.pointerId);velocity=b.dataset.v.split(',').map(Number)};
+ for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>{velocity=[0,0,0]});
+});$('zero').onclick=()=>{velocity=[0,0,0]};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stop()});window.addEventListener('pagehide',()=>{localStop();if(token)fetch('/api/command',{method:'POST',headers:headers(),keepalive:true,body:JSON.stringify({client,seq:++seq,op:'stop'})}).catch(()=>{})});
+const canvas=$('scan'),ctx=canvas.getContext('2d'),scale=55,cx=350,cy=385;
+function draw(){ctx.clearRect(0,0,700,440);ctx.strokeStyle='#264452';for(let r=1;r<=6;r++){ctx.beginPath();ctx.arc(cx,cy,r*scale,0,Math.PI*2);ctx.stroke()}
+ ctx.fillStyle='#65d6c2';for(const [x,y] of points)ctx.fillRect(cx-y*scale-2,cy-x*scale-2,4,4);
+ ctx.fillStyle='#dcebf2';ctx.fillRect(cx-14,cy-22,28,44);if(target){ctx.strokeStyle='#ffb957';ctx.beginPath();ctx.arc(cx-target[1]*scale,cy-target[0]*scale,9,0,7);ctx.stroke()}}
+canvas.onclick=e=>{if(active||pending)return;const r=canvas.getBoundingClientRect(),x=(cy-(e.clientY-r.top)*440/r.height)/scale,y=(cx-(e.clientX-r.left)*700/r.width)/scale;
+ if(x<=0||Math.hypot(x,y)>12)return;target=[+x.toFixed(2),+y.toFixed(2)];$('target').textContent=`目标：前方 ${target[0]} m，左侧 ${target[1]} m`;draw()};
+async function status(){if(!token)return;try{
+ const r=await fetch('/api/status',{headers:headers(),signal:AbortSignal.timeout(900)});if(!r.ok)throw Error('口令错误或服务不可达');const s=await r.json();connected=true;lastGood=Date.now();
+ $('state').textContent=(s.dry_run?'演练模式 · 不发送实机速度':'实机模式')+' · '+(s.dry_run?(s.operator?.owner?'预览运行中':'预览未开始'):(s.armed?'已使能':'已停止'));$('reason').textContent='操作：'+(s.operator?.reason||'等待状态')+'；桥：'+(s.reason||'等待状态');
+ if(active&&!pending&&s.operator?.owner!=='web:'+client){localStop();$('feedback').textContent=s.reason||'控制已停止'}
+ $('direct').disabled=$('follow').disabled=pending||active||!s.ready||!!s.operator?.owner;
+ const speeds=s.control_speeds||[0,0,0];$('speeds').textContent=`按键速度：前后 ${speeds[0]} m/s，左右 ${speeds[1]} m/s，转向 ${speeds[2]} rad/s。为 0 的轴当前不可用（步态下限超过限速或状态未知）。`;
+ document.querySelectorAll('[data-v]').forEach(b=>{const original=b.dataset.original||(b.dataset.original=b.dataset.v);const v=original.split(',').map(Number);const axis=v.findIndex(x=>x!==0);v[axis]=Math.sign(v[axis])*speeds[axis];b.dataset.v=v.join(',');b.disabled=!active||mode!=='direct'||speeds[axis]===0});
+ $('details').textContent=JSON.stringify({mode:s.operator?.mode,owner:s.operator?.owner,raw_velocity:s.operator?.raw_velocity,velocity:s.velocity,robot:s.robot_status,follow_ready:s.follow_ready},null,2);
+ points=s.scan||[];draw();
+ }catch(e){connected=false;localStop();$('direct').disabled=$('follow').disabled=true;$('state').textContent='连接中断 · 请检查机器人';$('reason').textContent=e.message}}
+setInterval(async()=>{if(!active||busy||document.hidden)return;busy=true;try{await command(mode==='direct'?'velocity':'heartbeat',mode==='direct'?{velocity}:{});}catch(e){localStop();$('feedback').textContent=e.message}finally{busy=false}},100);
+let polling=false;setInterval(async()=>{if(polling)return;polling=true;try{await status()}finally{polling=false}},400);draw();
+</script>
+</html>
