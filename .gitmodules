@@ -1,0 +1,3 @@
+[submodule "src/m20_protocol"]
+	path = src/m20_protocol
+	url = https://github.com/bernardleex526/m20_protocol.git
