@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>jie_deamon</name>
+  <name>jie_deamon_operator</name>
   <version>1.0.0</version>
   <description>机器狗后端服务节点</description>
   <maintainer email="zhangwanjie@6-robot.com">ZhangWanjie</maintainer>
@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <exec_depend>m20_protocol</exec_depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>

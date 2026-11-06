@@ -6,12 +6,12 @@
 
 ## 一次性准备
 
-在 GOS 的 `/home/user/m20_ws/src/jie_deamon` 放置本分支，使用原厂 Foxy 环境编译：
+在 GOS 的 `/home/user/m20_ws/src/deamon2/src/jie_deamon_operator` 放置本分支，使用原厂 Foxy 环境编译：
 
 ```bash
 source /opt/robot/scripts/setup_ros2.sh
 cd /home/user/m20_ws
-colcon build --packages-select jie_deamon --cmake-args -DBUILD_TESTING=ON
+colcon build --packages-select jie_deamon_operator --cmake-args -DBUILD_TESTING=ON
 source install/setup.bash
 ```
 
@@ -27,14 +27,14 @@ NOS 转发若需要脚本自动启动，管理员可用 `visudo` 为该用户授
 ## 日常演练：在 GOS 执行一条命令
 
 ```bash
-cd /home/user/m20_ws/src/jie_deamon
+cd /home/user/m20_ws/src/deamon2/src/jie_deamon_operator
 bash scripts/m20ctl preview
 ```
 
 该命令申请本机 sudo、加载已验证的 root DDS 环境、检查重复节点、通过 SSH 检查/启动
 NOS 转发、用 12 秒探测确认点云后启动网页。失败会退出并显示具体错误。AOS 无需登录。
 路径或 NOS 地址不同可设置 `M20_WS`、`M20_NOS_HOST`。不要在同一工作区同时保留可被
-colcon 发现的另一个 `jie_deamon` 包。
+colcon 发现的另一个 `jie_deamon_operator` 包。
 
 另一个 GOS 终端查看口令：
 
@@ -111,7 +111,7 @@ HTTP/WebSocket、旧 Android 接收器或 D1 动作发布逻辑。
 
 ```bash
 python3 -m unittest discover -s test -v
-colcon test --packages-select jie_deamon --ctest-args -R test_m20_tracker --output-on-failure
+colcon test --packages-select jie_deamon_operator --ctest-args -R test_m20_tracker --output-on-failure
 python3 test/ros_m20_smoke.py
 python3 test/ros_operator_smoke.py
 ```

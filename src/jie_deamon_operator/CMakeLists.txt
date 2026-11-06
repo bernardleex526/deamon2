@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(jie_deamon)
+project(jie_deamon_operator)
 
 # 设置C++17标准
 if(NOT CMAKE_CXX_STANDARD)

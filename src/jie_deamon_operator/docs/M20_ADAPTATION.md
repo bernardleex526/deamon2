@@ -46,14 +46,14 @@ GOS 可在测量负载后使用 `taskset -c 4-7`，关闭 OpenCV 窗口，先用
 
 ## 3. 官方建图与 deamon2 的边界
 
-`jie_deamon` 不是 SLAM、定位、路径规划或地图保存程序，不能替代 NOS 的 `drmap`。
+`jie_deamon_operator` 不是 SLAM、定位、路径规划或地图保存程序，不能替代 NOS 的 `drmap`。
 官方建图必须在 NOS 启动：`sudo drmap mapping [-n NAME] [-s] [-b]`，结束时执行
 `sudo drmap stop_mapping`。建图时由现场操作者使用原厂遥控器平稳行走。
 
 GOS 只允许使用以下被动入口：
 
 ```bash
-ros2 launch jie_deamon m20_mapping.launch.py
+ros2 launch jie_deamon_operator m20_mapping.launch.py
 ```
 
 该入口只订阅 `/LIDAR/POINTS` 并发布本地 `/m20/mapping_scan`，不会启动
@@ -71,7 +71,7 @@ flowchart LR
   R --> D[GOS 原厂解码和合并]
   D --> P[PointCloud2 /LIDAR/POINTS]
   P --> S[pointcloud_to_laserscan /m20/scan]
-  S --> J[jie_deamon 目标跟随]
+  S --> J[jie_deamon_operator 目标跟随]
   J --> V[Twist /m20/cmd_vel_raw]
   V --> B[GOS m20_bridge 20 Hz]
   S --> B
@@ -81,7 +81,7 @@ flowchart LR
 ```
 
 这张图表达选定的数据处理通路，不声称 NOS 是所有 ROS 点云订阅者的唯一 DDS 发布者。
-`jie_deamon` 是二维扫描目标质心跟随与简单势场避障程序，不是四足底层运控，也不是完整 SLAM/Nav2。
+`jie_deamon_operator` 是二维扫描目标质心跟随与简单势场避障程序，不是四足底层运控，也不是完整 SLAM/Nav2。
 无需用它替换 `rl_deploy`，其 `MODE_NAV` 也不等于 M20 的导航使用模式。
 
 ### 为什么选择 DDS 感知 + basic_server 控制

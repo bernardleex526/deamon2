@@ -187,7 +187,7 @@ public:
             web_comm_.setWebRoot(web_root);
             web_comm_.autoDetectWebRoot({
                 "./web",
-                "../share/jie_deamon/web"
+                "../share/jie_deamon_operator/web"
             });
             web_comm_.setDirectCmdCallback([this](double x, double y, double z) {
                 direct_controller_.processDirectCmd(x, y, z);

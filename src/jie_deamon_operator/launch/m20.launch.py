@@ -8,7 +8,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
-    share = get_package_share_directory('jie_deamon')
+    share = get_package_share_directory('jie_deamon_operator')
     config = LaunchConfiguration('config')
     boolean = lambda name: ParameterValue(LaunchConfiguration(name), value_type=bool)
     string = lambda name: ParameterValue(LaunchConfiguration(name), value_type=str)
@@ -45,7 +45,7 @@ def generate_launch_description():
              name='m20_cloud_to_scan', output='screen',
              parameters=[config, {'use_sim_time': boolean('use_sim_time')}],
              remappings=[('cloud_in', LaunchConfiguration('cloud_topic')), ('scan', '/m20/scan')]),
-        Node(package='jie_deamon', executable='robot_nexus', name='robot_nexus', output='screen',
+        Node(package='jie_deamon_operator', executable='robot_nexus', name='robot_nexus', output='screen',
              parameters=[config, {'enable_web': False,
                                   'operator_control': boolean('enable_web'),
                                   'enable_android': False, 'enable_actions': False,
@@ -53,7 +53,7 @@ def generate_launch_description():
                                   'use_sim_time': boolean('use_sim_time')}],
              remappings=[('/scan', '/m20/scan'), ('/cmd_vel', '/m20/cmd_vel_raw'),
                          ('/d1_cmd', '/m20/unsupported_d1_actions')]),
-        Node(package='jie_deamon', executable='m20_bridge', name='m20_bridge', output='screen',
+        Node(package='jie_deamon_operator', executable='m20_bridge', name='m20_bridge', output='screen',
              parameters=[config, {'dry_run': boolean('dry_run'),
                                   'commissioned': boolean('commissioned'),
                                   'control_profile': string('control_profile'),

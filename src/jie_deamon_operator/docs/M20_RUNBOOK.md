@@ -25,7 +25,7 @@ python -m unittest discover -s test -v
 安装依赖需要先联网；依赖已缓存后可断网执行构建和下述演练。
 当前交付的是源码与流程，不是包含全部 ROS/ARM 依赖的完全断网安装镜像。
 
-把本仓库置于 `~/m20_ws/src/jie_deamon`。已安装相应 ROS 后执行：
+把本仓库置于 `~/m20_ws/src/deamon2/src/jie_deamon_operator`。已安装相应 ROS 后执行：
 
 ```bash
 source /opt/ros/foxy/setup.bash
@@ -35,11 +35,11 @@ sudo apt-get install -y libopencv-dev python3-colcon-common-extensions \
   ros-${ROS_DISTRO}-ament-lint-auto ros-${ROS_DISTRO}-ament-lint-common \
   ros-${ROS_DISTRO}-pointcloud-to-laserscan
 cd ~/m20_ws
-colcon build --packages-select jie_deamon --cmake-args -DBUILD_TESTING=ON
+colcon build --packages-select jie_deamon_operator --cmake-args -DBUILD_TESTING=ON
 source install/setup.bash
-colcon test --packages-select jie_deamon --ctest-args -R test_m20_tracker --output-on-failure
+colcon test --packages-select jie_deamon_operator --ctest-args -R test_m20_tracker --output-on-failure
 colcon test-result --verbose
-cd src/jie_deamon
+cd src/jie_deamon_operator
 python3 -m unittest discover -s test -v
 python3 test/ros_m20_smoke.py
 ```
@@ -62,13 +62,13 @@ export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 终端 A：
 
 ```bash
-ros2 launch jie_deamon m20.launch.py cloud_topic:=/m20/mock_points
+ros2 launch jie_deamon_operator m20.launch.py cloud_topic:=/m20/mock_points
 ```
 
 终端 B：
 
 ```bash
-ros2 run jie_deamon m20_mock_inputs
+ros2 run jie_deamon_operator m20_mock_inputs
 ```
 
 终端 C，选中前方 1.8 m 合成目标并启动跟随：
@@ -109,7 +109,7 @@ Web 只作为离线可视化选项：`enable_web:=true`，对应 8080/8890 端�
 在隔离的 Domain 83 上运行，录包应包含原始 `/LIDAR/POINTS`。
 
 ```bash
-ros2 launch jie_deamon m20.launch.py use_sim_time:=true
+ros2 launch jie_deamon_operator m20.launch.py use_sim_time:=true
 ros2 bag play /path/to/bag --clock
 ```
 
@@ -161,7 +161,7 @@ PTP：检查 rsdriver 日志 `ptp=0x1`、时间差，确认 NOS Master/GOS Slave
 
 ## 6. NOS 官方建图与 GOS 被动观察
 
-`jie_deamon` 不负责 SLAM 或地图保存。官方建图程序只在 NOS 上运行；GOS 不启动
+`jie_deamon_operator` 不负责 SLAM 或地图保存。官方建图程序只在 NOS 上运行；GOS 不启动
 `m20.launch.py`，不启动桥接节点，也不发布任何速度命令。
 
 建图前确认机器人静止站立、路线已清理、门已打开、无人员频繁穿行或雷达遮挡。NOS 上按需要启动：
@@ -187,7 +187,7 @@ sudo drmap stop_mapping
 ```bash
 source /opt/robot/scripts/setup_ros2.sh
 source ~/m20_ws/install/setup.bash
-ros2 launch jie_deamon m20_mapping.launch.py
+ros2 launch jie_deamon_operator m20_mapping.launch.py
 ```
 
 输入为融合 `/LIDAR/POINTS`，输出为本地 `/m20/mapping_scan`。不要修改
@@ -203,7 +203,7 @@ source /opt/robot/scripts/setup_ros2.sh
 source ~/m20_ws/install/setup.bash
 export ROS_DOMAIN_ID=0
 export ROS_LOCALHOST_ONLY=0
-taskset -c 4-7 ros2 launch jie_deamon m20.launch.py
+taskset -c 4-7 ros2 launch jie_deamon_operator m20.launch.py
 ```
 
 用静态物体检查正前方点 x>0、左侧 y>0；确认无遮挡时有效帧，停止区内障碍能触发解除使能。
@@ -225,7 +225,7 @@ taskset -c 4-7 ros2 launch jie_deamon m20.launch.py
 5. 只有这些条件已核验后，才在 GOS 重启为 live：
 
 ```bash
-ros2 launch jie_deamon m20.launch.py dry_run:=false commissioned:=true
+ros2 launch jie_deamon_operator m20.launch.py dry_run:=false commissioned:=true
 ```
 
 6. live 启动即向 AOS 发心跳和零速度，但不会自动 arm、起立、趴下、切换模式或步态。

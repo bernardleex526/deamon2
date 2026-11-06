@@ -27,7 +27,7 @@ def main():
     observer.create_subscription(LaserScan, '/m20/mapping_scan', scans.append,
                                  qos_profile_sensor_data)
     process = subprocess.Popen(
-        ['ros2', 'launch', 'jie_deamon', 'm20_mapping.launch.py',
+        ['ros2', 'launch', 'jie_deamon_operator', 'm20_mapping.launch.py',
          'cloud_topic:=/m20/mock_points'], start_new_session=True)
 
     def until(predicate):

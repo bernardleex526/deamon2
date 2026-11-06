@@ -21,7 +21,7 @@ from m20_adapter.mock_inputs import MockInputs
 
 def main():
     process = subprocess.Popen(
-        ['ros2', 'launch', 'jie_deamon', 'm20.launch.py',
+        ['ros2', 'launch', 'jie_deamon_operator', 'm20.launch.py',
          'cloud_topic:=/m20/mock_points', 'dry_run:=true', 'enable_web:=false'],
         start_new_session=True)
     rclpy.init()

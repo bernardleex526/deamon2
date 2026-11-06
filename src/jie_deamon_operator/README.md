@@ -1,4 +1,10 @@
-# deamon / jie_deamon — M20 Pro 跟随与远程控制
+# deamon / jie_deamon_operator — M20 Pro 跟随与远程控制
+
+> **2026-11-06 合并说明**：本包原为独立仓库 `bernardleex526/deamon`，已连同完整提交历史并入
+> `deamon2/src/jie_deamon_operator`（包名由 `jie_deamon` 改为 `jie_deamon_operator`，可与已部署的
+> `src/jie_deamon` 并存编译）。`m20_adapter/core.py` 的协议帧编解码改为使用共享包
+> [`m20_protocol`](https://github.com/bernardleex526/m20_protocol)（`src/m20_protocol` 子模块）。
+> 两个包的 `robot_nexus.cpp` 仍是两套实现，统一需要实机验收，尚未进行。
 
 云深处 **山猫 M20 Pro** 四足机器人的二维雷达跟随 + 手机/Android 远程控制网关。
 
@@ -127,18 +133,18 @@ export ROS_DOMAIN_ID=0 ROS_LOCALHOST_ONLY=0 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ```bash
 # 1) 一次性：放到工作区并编译
 cd ~/m20_ws/src
-git clone https://github.com/bernardleex526/deamon.git jie_deamon
+git clone https://github.com/bernardleex526/deamon2.git   # 本包位于 deamon2/src/jie_deamon_operator
 cd ~/m20_ws
 source /opt/robot/scripts/setup_ros2.sh
-colcon build --packages-select jie_deamon
+colcon build --packages-select jie_deamon_operator
 source install/setup.bash
 
 # 2) 只读预检（12 项检查，写 /tmp/m20_preflight.json）
-ros2 run jie_deamon m20_preflight.py --seconds 12 --require-scan
+ros2 run jie_deamon_operator m20_preflight.py --seconds 12 --require-scan
 echo "exit=$?"        # 必须是 0
 
 # 3) 演练（不打开 AOS 控制 socket，不 arm）
-cd ~/m20_ws/src/jie_deamon
+cd ~/m20_ws/src/deamon2/src/jie_deamon_operator
 bash scripts/m20ctl preview
 
 # 4) 另一个终端取手机口令
@@ -174,11 +180,11 @@ sudo apt-get install -y libopencv-dev python3-colcon-common-extensions \
 
 ```bash
 cd ~/m20_ws
-colcon build --packages-select jie_deamon --cmake-args -DBUILD_TESTING=ON
+colcon build --packages-select jie_deamon_operator --cmake-args -DBUILD_TESTING=ON
 source install/setup.bash
-colcon test --packages-select jie_deamon --ctest-args -R test_m20_tracker --output-on-failure
+colcon test --packages-select jie_deamon_operator --ctest-args -R test_m20_tracker --output-on-failure
 colcon test-result --verbose
-cd src/jie_deamon && python3 -m unittest discover -s test -v
+cd src/jie_deamon_operator && python3 -m unittest discover -s test -v
 ```
 
 > 全量 `ament` lint 在既有代码上并非全绿（上游遗留版权/风格问题与 vendored
@@ -191,11 +197,11 @@ source /opt/ros/humble/setup.bash      # 或 foxy
 export ROS_DOMAIN_ID=83 ROS_LOCALHOST_ONLY=1 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 # 合成点云 + 状态
-ros2 launch jie_deamon m20.launch.py cloud_topic:=/m20/mock_points enable_web:=false
-ros2 run jie_deamon m20_mock_inputs
+ros2 launch jie_deamon_operator m20.launch.py cloud_topic:=/m20/mock_points enable_web:=false
+ros2 run jie_deamon_operator m20_mock_inputs
 
 # 或：可移动模拟人 + 12 个断言场景（推荐）
-ros2 run jie_deamon m20_follow_sim --report /tmp/m20_follow_sim.json
+ros2 run jie_deamon_operator m20_follow_sim --report /tmp/m20_follow_sim.json
 ```
 
 `m20_follow_sim` 启动自己的 launch，全程 dry-run，不接触 AOS。它强制隔离：
@@ -359,7 +365,7 @@ ros2 run jie_deamon m20_follow_sim --report /tmp/m20_follow_sim.json
 > 完整可执行清单见 [docs/M20_ACCEPTANCE_CHECKLIST.md](docs/M20_ACCEPTANCE_CHECKLIST.md)。
 
 1. **只读检查**：确认固件版本、`multicast-relay.service` 状态、点云频率与 frame。
-2. **预检**：`ros2 run jie_deamon m20_preflight.py --seconds 12 --require-scan`，
+2. **预检**：`ros2 run jie_deamon_operator m20_preflight.py --seconds 12 --require-scan`，
    required 检查必须全绿（root、relay、planner 空闲、无 `/NAV_CMD` 发布者、点云/扫描新鲜、
    AOS 心跳与 BasicStatus、步态可用）。
 3. **dry-run**：`bash scripts/m20ctl preview`，观察 `/m20/scan_report`、`/m20/bridge_status`，
@@ -379,7 +385,7 @@ ros2 run jie_deamon m20_follow_sim --report /tmp/m20_follow_sim.json
 ## 9. 手机 / Android 操作入口
 
 ```bash
-cd /home/user/m20_ws/src/jie_deamon
+cd /home/user/m20_ws/src/deamon2/src/jie_deamon_operator
 bash scripts/m20ctl preview          # 演练（不打开控制 socket）
 bash scripts/m20ctl token            # 取口令
 bash scripts/m20ctl status           # 只读状态
@@ -430,8 +436,8 @@ bash scripts/m20ctl live --commissioned   # 实机（验收后）
 systemctl status multicast-relay.service --no-pager
 systemctl status rsdriver.service --no-pager
 journalctl -u rsdriver.service -n 40 --no-pager      # 看 ptp=0x1、前后雷达 status
-ros2 run jie_deamon m20_cloud_probe.py --seconds 12 --cloud-only
-ros2 run jie_deamon m20_status_probe.py --seconds 6  # 只发心跳，不发速度
+ros2 run jie_deamon_operator m20_cloud_probe.py --seconds 12 --cloud-only
+ros2 run jie_deamon_operator m20_status_probe.py --seconds 6  # 只发心跳，不发速度
 ros2 topic echo --once /m20/scan_report
 ```
 
@@ -448,12 +454,12 @@ ros2 topic echo --once /m20/scan_report
 | ROS smoke | `python3 test/ros_m20_smoke.py` | 默认零速、前进跟随、目标丢失、障碍锁定、输入中断 |
 | 操作员 smoke | `python3 test/ros_operator_smoke.py` | HTTP 选点 → 带标记跟随预览 → 断连停机 |
 | 建图观察 smoke | `python3 test/ros_m20_mapping_smoke.py` | 被动观察器不产生速度发布者 |
-| **仿真** | `ros2 run jie_deamon m20_follow_sim` | 可移动模拟人 12 个场景，断言 raw/guarded |
+| **仿真** | `ros2 run jie_deamon_operator m20_follow_sim` | 可移动模拟人 12 个场景，断言 raw/guarded |
 
 ### 11.2 本机（WSL Ubuntu 22.04 + ROS 2 Humble）实测结果
 
 ```text
-colcon build --packages-select jie_deamon --cmake-args -DBUILD_TESTING=ON   # exit 0
+colcon build --packages-select jie_deamon_operator --cmake-args -DBUILD_TESTING=ON   # exit 0
 python3 -m unittest discover -s test                                        # Ran 71 tests ... OK
 colcon test --ctest-args -R test_m20_tracker                                # 5 tests, 0 failures
 python3 test/ros_m20_smoke.py                                               # PASS

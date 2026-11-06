@@ -207,7 +207,7 @@ def run(args):
     launch = None
     if not args.no_launch:
         launch = subprocess.Popen(
-            ['ros2', 'launch', 'jie_deamon', 'm20.launch.py',
+            ['ros2', 'launch', 'jie_deamon_operator', 'm20.launch.py',
              'cloud_topic:=/m20/mock_points', 'dry_run:=true', 'enable_web:=false'],
             env=dict(os.environ), start_new_session=True)
     rclpy.init()

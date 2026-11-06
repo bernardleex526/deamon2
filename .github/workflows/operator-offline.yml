@@ -1,11 +1,14 @@
-name: M20 offline adaptation
+name: jie_deamon_operator offline checks
 on: [push, pull_request, workflow_dispatch]
 jobs:
   core:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 -m unittest discover -s test -v
+        with:
+          submodules: true
+      - run: PYTHONPATH=$GITHUB_WORKSPACE/src/m20_protocol python3 -m unittest discover -s test -v
+        working-directory: src/jie_deamon_operator
   ros:
     runs-on: ubuntu-22.04
     strategy:
@@ -13,7 +16,11 @@ jobs:
         distro: [foxy, humble]
     container: ros:${{ matrix.distro }}-ros-base
     steps:
+      - name: Install git for submodule checkout
+        run: apt-get update && apt-get install -y git
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Install build and runtime dependencies
         shell: bash
         run: |
@@ -26,11 +33,12 @@ jobs:
         shell: bash
         run: |
           source /opt/ros/${ROS_DISTRO}/setup.bash
-          colcon build --packages-select jie_deamon --cmake-args -DBUILD_TESTING=ON
+          colcon build --packages-up-to jie_deamon_operator --cmake-args -DBUILD_TESTING=ON
           source install/setup.bash
-          colcon test --packages-select jie_deamon --ctest-args -R test_m20_tracker --output-on-failure
+          colcon test --packages-select jie_deamon_operator --ctest-args -R test_m20_tracker --output-on-failure
           colcon test-result --verbose
-          ros2 launch jie_deamon m20.launch.py --show-args
+          ros2 launch jie_deamon_operator m20.launch.py --show-args
+          cd src/jie_deamon_operator
           python3 test/ros_m20_smoke.py
           python3 test/ros_operator_smoke.py
           python3 -m m20_adapter.follow_sim --report /tmp/m20_follow_sim.json

@@ -43,7 +43,7 @@ source /opt/robot/scripts/setup_ros2.sh
 source "$workspace/install/setup.bash"
 export ROS_DOMAIN_ID=0 ROS_LOCALHOST_ONLY=0 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 set -u
-ros2 pkg prefix jie_deamon
+ros2 pkg prefix jie_deamon_operator
 ssh_command=(ssh -o BatchMode=yes -o ConnectTimeout=5 "$nos_host")
 if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != root ]]; then
   ssh_command=(runuser -u "$SUDO_USER" -- "${ssh_command[@]}")
@@ -60,7 +60,7 @@ if [[ "$command_name" == preview || "$command_name" == live ]]; then
 else
   "${ssh_command[@]}" 'systemctl is-active multicast-relay.service'
 fi
-ros2 run jie_deamon m20_cloud_probe.py --seconds 12 --cloud-only
+ros2 run jie_deamon_operator m20_cloud_probe.py --seconds 12 --cloud-only
 if [[ "$command_name" == check ]]; then
   echo 'Fresh lidar confirmed. This does not verify factory task/control ownership.'
   exit 0
@@ -73,7 +73,7 @@ chmod 600 "$M20_OPERATOR_TOKEN_FILE"
 echo 'Phone: http://<GOS reachable IP>:8080 ; use another terminal: bash scripts/m20ctl token'
 echo 'The control lease starts only when you press Start. Ctrl+C exits this launch.'
 if [[ "$command_name" == live ]]; then
-  exec ros2 launch jie_deamon m20.launch.py dry_run:=false commissioned:=true enable_web:=true
+  exec ros2 launch jie_deamon_operator m20.launch.py dry_run:=false commissioned:=true enable_web:=true
 else
-  exec ros2 launch jie_deamon m20.launch.py dry_run:=true commissioned:=false enable_web:=true
+  exec ros2 launch jie_deamon_operator m20.launch.py dry_run:=true commissioned:=false enable_web:=true
 fi

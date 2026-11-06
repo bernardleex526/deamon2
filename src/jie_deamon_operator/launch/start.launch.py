@@ -13,7 +13,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('jie_deamon')
+    pkg_share = get_package_share_directory('jie_deamon_operator')
 
     # 声明启动参数
     active_arg = DeclareLaunchArgument(
@@ -36,7 +36,7 @@ def generate_launch_description():
 
     # 创建节点
     robot_nexus_node = Node(
-        package='jie_deamon',
+        package='jie_deamon_operator',
         executable='robot_nexus',
         name='robot_nexus',
         output='screen',

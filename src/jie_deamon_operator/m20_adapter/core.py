@@ -15,36 +15,31 @@ Design notes (see docs/M20_BLOCKERS_CLEARED.md):
   because lidar returns from the robot's own legs are persistent and otherwise
   make the bridge impossible to arm.
 """
-import datetime
-import json
 import math
 import socket
-import struct
 import time
 
-HEADER = struct.Struct('<4sHHB7s')
-MAGIC = bytes.fromhex('eb91eb90')
+from m20_protocol import SYNC as MAGIC
+from m20_protocol.frame import HEADER
+from m20_protocol import decode as _decode
+from m20_protocol import encode as _encode
+from m20_protocol import commands as _C
+
 ZERO = (0.0, 0.0, 0.0)
 
 #: Vendor BasicStatus ControlUsageMode values (modes.txt).
-MODE_REGULAR = 0
-MODE_NAV = 1
-MODE_AUX = 2
-MODE_NAMES = {MODE_REGULAR: 'regular', MODE_NAV: 'navigation', MODE_AUX: 'auxiliary'}
+MODE_REGULAR = _C.MODE_REGULAR
+MODE_NAV = _C.MODE_NAV
+MODE_AUX = _C.MODE_AUX
+MODE_NAMES = _C.MODE_NAMES
 
 #: basic_server Type=2 sub-commands.
-CMD_AXIS_NORMALIZED = 21   # regular / auxiliary mode only
-CMD_VELOCITY_SI = 25       # navigation mode only
+CMD_AXIS_NORMALIZED = _C.C_AXIS_NORMALIZED   # regular / auxiliary mode only
+CMD_VELOCITY_SI = _C.C_VELOCITY_SI           # navigation mode only
 
 #: gait id -> (name, x_min, y_min, yaw_min, x_max, y_max, yaw_max)
-#: Ranges are copied from the vendor "运动控制（basic_server 协议）" page,
-#: section 4.5 "各个步态的有效速度范围" (software >= V1.1.7).
-GAIT_TABLE = {
-    4097: ('standard-basic', 0.20, 0.35, 0.50, 2.0, 1.0, 2.0),
-    4099: ('standard-stairs', 0.15, 0.30, 0.40, 2.0, 1.0, 2.0),
-    12290: ('agile-flat', 0.15, 0.25, 0.35, 2.0, 1.0, 1.5),
-    12291: ('agile-stairs', 0.15, 0.30, 0.40, 2.0, 1.0, 2.0),
-}
+#: Vendor "运动控制（basic_server 协议）" page, section 4.5 (software >= V1.1.7).
+GAIT_TABLE = _C.GAIT_TABLE_V117
 
 #: Backwards-compatible minimum-speed view (x_min, y_min, yaw_min).
 GAITS = {gait: (row[1], row[2], row[3]) for gait, row in GAIT_TABLE.items()}
@@ -52,38 +47,18 @@ GAITS = {gait: (row[1], row[2], row[3]) for gait, row in GAIT_TABLE.items()}
 #: Nominal per-axis full-scale values used to normalize Cmd=21.  The vendor
 #: page only says "relative to that axis' maximum speed"; these are the largest
 #: documented values for any gait and MUST be verified on the robot.
-DEFAULT_AXIS_MAX = (2.0, 1.0, 2.0)
+DEFAULT_AXIS_MAX = _C.DEFAULT_AXIS_MAX
 
 
 def encode(message_type, command, items, message_id, timestamp=None):
-    if not 0 <= message_id <= 65535:
-        raise ValueError('message ID outside uint16')
-    body = json.dumps({'PatrolDevice': {
-        'Type': message_type, 'Command': command,
-        'Time': timestamp or datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'Items': items}}, ensure_ascii=False, allow_nan=False,
-        separators=(',', ':')).encode('utf-8')
-    if len(body) > 65535:
-        raise ValueError('ASDU too large')
-    return HEADER.pack(MAGIC, len(body), message_id, 1, bytes(7)) + body
+    """Framing is shared with the other M20 bridges (m20_protocol)."""
+    return _encode(message_type, command, items, message_id, timestamp)
 
 
 def decode(packet):
-    if len(packet) < HEADER.size:
-        raise ValueError('truncated header')
-    magic, length, message_id, fmt, reserved = HEADER.unpack_from(packet)
-    if magic != MAGIC or fmt != 1 or reserved != bytes(7):
-        raise ValueError('invalid JSON protocol header')
-    if len(packet) != HEADER.size + length:
-        raise ValueError('invalid datagram length')
-    body = json.loads(packet[HEADER.size:].decode('utf-8'))
-    if not isinstance(body, dict) or not isinstance(body.get('PatrolDevice'), dict):
-        raise ValueError('missing PatrolDevice')
-    value = body['PatrolDevice']
-    if (type(value.get('Type')) is not int or type(value.get('Command')) is not int
-            or not isinstance(value.get('Items'), dict)):
-        raise ValueError('invalid ASDU fields')
-    return message_id, value
+    """Return ``(message_id, PatrolDevice dict)``; raise ValueError if invalid."""
+    frame = _decode(packet)
+    return frame.msg_id, frame.raw
 
 
 def velocity_items(velocity):
@@ -95,14 +70,7 @@ def velocity_items(velocity):
 
 def normalize_velocity(velocity, axis_max=DEFAULT_AXIS_MAX):
     """Convert SI (m/s, rad/s) to the Cmd=21 normalized [-1, 1] representation."""
-    out = []
-    for value, full_scale in zip(velocity, axis_max):
-        if not math.isfinite(value):
-            raise ValueError('nonfinite velocity')
-        if not math.isfinite(full_scale) or full_scale <= 0.0:
-            raise ValueError('axis maximum must be positive and finite')
-        out.append(max(-1.0, min(1.0, value / full_scale)))
-    return tuple(out)
+    return _C.normalize_velocity(velocity, axis_max)
 
 
 def normalized_items(velocity, axis_max=DEFAULT_AXIS_MAX):
@@ -116,23 +84,7 @@ def select_command(profile, usage_mode, allow_auxiliary=False):
     ``profile`` is ``auto``, ``si`` or ``normalized``.  Returns ``None`` when the
     combination is not permitted by the vendor documentation.
     """
-    if profile == 'si':
-        return CMD_VELOCITY_SI if usage_mode == MODE_NAV else None
-    if profile == 'normalized':
-        if usage_mode == MODE_REGULAR:
-            return CMD_AXIS_NORMALIZED
-        if usage_mode == MODE_AUX and allow_auxiliary:
-            return CMD_AXIS_NORMALIZED
-        return None
-    if profile == 'auto':
-        if usage_mode == MODE_NAV:
-            return CMD_VELOCITY_SI
-        if usage_mode == MODE_REGULAR:
-            return CMD_AXIS_NORMALIZED
-        if usage_mode == MODE_AUX and allow_auxiliary:
-            return CMD_AXIS_NORMALIZED
-        return None
-    raise ValueError('unknown control profile: ' + str(profile))
+    return _C.select_velocity_command(profile, usage_mode, allow_auxiliary)
 
 
 class UdpClient:

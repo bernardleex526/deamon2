@@ -23,7 +23,7 @@ def main():
         path = Path(directory) / 'token'
         path.write_text(token)
         process = subprocess.Popen([
-            'ros2', 'launch', 'jie_deamon', 'm20.launch.py',
+            'ros2', 'launch', 'jie_deamon_operator', 'm20.launch.py',
             'cloud_topic:=/m20/mock_points', 'operator_host:=127.0.0.1',
             'operator_port:=18080', 'android_port:=0',
             'operator_token_file:=' + str(path)], start_new_session=True)

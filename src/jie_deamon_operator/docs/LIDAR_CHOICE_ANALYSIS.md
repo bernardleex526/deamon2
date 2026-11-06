@@ -290,10 +290,10 @@ export ROS_LOCALHOST_ONLY=0
 export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 
 # 1) 被动观察（建图期间/联调期，只跑点云→扫描，不发速度）
-taskset -c 4-7 ros2 launch jie_deamon m20_mapping.launch.py
+taskset -c 4-7 ros2 launch jie_deamon_operator m20_mapping.launch.py
 
 # 2) 跟随 dry-run（不改 AOS、不开发速度）
-taskset -c 4-7 ros2 launch jie_deamon m20.launch.py
+taskset -c 4-7 ros2 launch jie_deamon_operator m20.launch.py
 
 # 3) 观察门控状态
 ros2 topic echo /m20/bridge_status

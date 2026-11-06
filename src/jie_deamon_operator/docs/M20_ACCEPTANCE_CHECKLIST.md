@@ -19,8 +19,8 @@
 | 0.1 | 固件版本 | 在 GOS `cat /opt/robot/.../version*`；或用 APP 查看 | ≥ V1.1.7 |
 | 0.2 | 场地 | 清空 3 m × 3 m，地面平整、无台阶/玻璃门/负障碍 | — |
 | 0.3 | 机器人 | 用原厂控制端起立，站立稳定 | `MotionState=17` |
-| 0.4 | 代码 | `cd ~/m20_ws/src/jie_deamon && git log --oneline -1` | 记录 commit |
-| 0.5 | 构建 | `colcon build --packages-select jie_deamon` | exit 0 |
+| 0.4 | 代码 | `cd ~/m20_ws/src/deamon2/src/jie_deamon_operator && git log --oneline -1` | 记录 commit |
+| 0.5 | 构建 | `colcon build --packages-select jie_deamon_operator` | exit 0 |
 
 ```bash
 # 每次验收都从干净的 root 环境开始
@@ -36,7 +36,7 @@ export ROS_DOMAIN_ID=0 ROS_LOCALHOST_ONLY=0 RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ## 1. 只读预检（必须全绿）
 
 ```bash
-ros2 run jie_deamon m20_preflight.py --seconds 12 --require-scan
+ros2 run jie_deamon_operator m20_preflight.py --seconds 12 --require-scan
 echo "exit=$?"   # 必须是 0
 cat /tmp/m20_preflight.json | python3 -m json.tool | head -60
 ```
@@ -62,9 +62,9 @@ cat /tmp/m20_preflight.json | python3 -m json.tool | head -60
 
 ```bash
 # 终端 A
-ros2 launch jie_deamon m20.launch.py dry_run:=true commissioned:=false
+ros2 launch jie_deamon_operator m20.launch.py dry_run:=true commissioned:=false
 # 终端 B（同环境）
-ros2 run jie_deamon m20_cloud_probe.py --seconds 12
+ros2 run jie_deamon_operator m20_cloud_probe.py --seconds 12
 ros2 topic echo --once /m20/scan_report
 ```
 
@@ -85,7 +85,7 @@ ros2 topic echo --once /m20/scan_report
 ## 3. 使用模式与步态（**任务四结论落地**）
 
 ```bash
-ros2 run jie_deamon m20_status_probe.py --seconds 6
+ros2 run jie_deamon_operator m20_status_probe.py --seconds 6
 ```
 
 | 场景 | 期望 |
@@ -129,7 +129,7 @@ ros2 run jie_deamon m20_status_probe.py --seconds 6
 ## 5. 首次 live：只发心跳与零速（**不 arm**）
 
 ```bash
-ros2 launch jie_deamon m20.launch.py dry_run:=false commissioned:=true
+ros2 launch jie_deamon_operator m20.launch.py dry_run:=false commissioned:=true
 ```
 
 | # | 判据 | 不通过怎么办 |
@@ -177,7 +177,7 @@ ros2 service call /m20/arm std_srvs/srv/SetBool '{data: false}'
 
 ```bash
 # 7.1 dry-run（不开发送）
-ros2 launch jie_deamon m20.launch.py dry_run:=true
+ros2 launch jie_deamon_operator m20.launch.py dry_run:=true
 # 7.2 人在 2 m 正前方，选定目标并观察 raw/guarded
 ros2 topic pub --once /robot_nexus/target geometry_msgs/msg/Point '{x: 2.0, y: 0.0, z: 0.0}'
 ros2 service call /robot_nexus/set_moving std_srvs/srv/SetBool '{data: true}'
@@ -202,7 +202,7 @@ ros2 topic echo /m20/cmd_vel_guarded    # dry-run 恒为 0
 
 ```bash
 export ROS_DOMAIN_ID=83 ROS_LOCALHOST_ONLY=1
-ros2 run jie_deamon m20_follow_sim --report /tmp/follow_sim.json
+ros2 run jie_deamon_operator m20_follow_sim --report /tmp/follow_sim.json
 ```
 
 ---
@@ -230,7 +230,7 @@ ros2 run jie_deamon m20_follow_sim --report /tmp/follow_sim.json
 
 | # | 命令 | 判据 |
 | --- | --- | --- |
-| 9.1 | `taskset -c 4-7 ros2 launch jie_deamon m20.launch.py` | 绑大核（官方建议） |
+| 9.1 | `taskset -c 4-7 ros2 launch jie_deamon_operator m20.launch.py` | 绑大核（官方建议） |
 | 9.2 | `pidstat -p $(pgrep -f robot_nexus) 1 30` | CPU/内存无持续爬升 |
 | 9.3 | `ros2 topic hz /m20/scan /m20/cmd_vel_raw` | 均 ~10 Hz；桥 20 Hz |
 | 9.4 | 端到端延迟 | 扫描时间戳 → 发包时间，记录均值/最大值 |

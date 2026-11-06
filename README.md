@@ -26,6 +26,18 @@
 >   记录**：其中上游 D1 或 `start.launch` 的旧指令不代表本工程 M20 的推荐
 >   操作，**勿照旧文档驱动 M20**。
 
+## 仓库内的两个 ROS 包（2026-11-06 合并）
+
+| 包 | 路径 | 内容 | 状态 |
+|---|---|---|---|
+| `jie_deamon` | `src/jie_deamon/` + `motion_control/` | 上文所述的发布快照（GOS104 已部署） | 合并时**未修改** |
+| `jie_deamon_operator` | `src/jie_deamon_operator/` | 原 `bernardleex526/deamon`：网页/Android 操作员网关、`m20_adapter` basic_server 桥、可移动模拟人仿真 | 连同历史并入；实机跟随**未验收**，见其 README |
+| `m20_protocol` | `src/m20_protocol/`（子模块） | 共享的 M20 basic_server 帧编解码 | `jie_deamon_operator` 使用 |
+
+克隆时带上子模块：`git clone --recursive https://github.com/bernardleex526/deamon2.git`。
+两个包的 `robot_nexus.cpp` 是两套不同实现（参数集不同），统一需实机验收，尚未进行；
+本根 README 的安全声明与操作流程只适用于 `jie_deamon`。
+
 ## 目录导航
 
 - [0. 机器与终端约定](#0-机器与终端约定)

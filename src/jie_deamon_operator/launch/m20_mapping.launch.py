@@ -10,7 +10,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
-    share = get_package_share_directory('jie_deamon')
+    share = get_package_share_directory('jie_deamon_operator')
     config = LaunchConfiguration('config')
     use_sim_time = ParameterValue(
         LaunchConfiguration('use_sim_time'), value_type=bool)
